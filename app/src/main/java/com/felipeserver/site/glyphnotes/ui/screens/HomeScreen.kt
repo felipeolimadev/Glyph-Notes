@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
@@ -46,6 +47,7 @@ import androidx.compose.material3.SearchBar
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -62,9 +64,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -73,6 +77,7 @@ import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
 import com.felipeserver.site.glyphnotes.ui.viewmodel.navigation.NavigationItem.Companion.navigationItems
 import com.felipeserver.site.glyphnotes.ui.viewmodel.navigation.Screen
+import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModel
 
 @Composable
 fun HomeScreen() {
@@ -96,7 +101,7 @@ fun HomeScreen() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(route = Screen.Home.rout) {
-                HomeContent(PaddingValues(0.dp)) // Removendo padding do sistema aqui
+                HomeContent()
             }
             composable(route = Screen.Folder.rout) {
                 FolderScreen()
@@ -112,12 +117,11 @@ fun HomeScreen() {
 }
 
 @Composable
-fun HomeContent(innerPadding: PaddingValues) {
+fun HomeContent() {
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(innerPadding)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
@@ -125,6 +129,7 @@ fun HomeContent(innerPadding: PaddingValues) {
             ProfileBar()
             SearchBarField()
             PinnedCards()
+            NotesList()
         }
     }
 }
@@ -217,13 +222,14 @@ fun SearchBarField() {
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
         ) {
             items(filteredItems) { item ->
-                Text(text = item, modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        searchQuery = item
-                        active = false
-                    }
-                    .padding(vertical = 14.dp))
+                Text(
+                    text = item, modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            searchQuery = item
+                            active = false
+                        }
+                        .padding(vertical = 14.dp))
                 HorizontalDivider()
             }
         }
@@ -294,7 +300,7 @@ fun PinnedCards() {
                         .padding(16.dp)
                         .fillMaxWidth(),
                     horizontalAlignment = Alignment.Start,
-                ){
+                ) {
                     Text(
                         text = "Project Alpha",
                         style = MaterialTheme.typography.titleMedium.copy(
@@ -314,6 +320,64 @@ fun PinnedCards() {
 }
 
 @Composable
+fun NotesList() {
+    val notesViewModel: NoteViewModel = viewModel()
+    val notes = notesViewModel.allNotes.collectAsState()
+
+    LazyColumn() {
+        items(notes.value) { note ->
+            NotesItem(
+                title = note.title,
+                content = note.content,
+                date = note.lastEditDate.time,
+                category = note.category
+            )
+        }
+    }
+}
+
+@Composable
+fun NotesItem(title: String, content: String, date: Long, category: String) {
+
+    Surface() {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Article,
+                        contentDescription = "Note",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.padding(8.dp))
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.padding(4.dp))
+                Text(
+                    text = content,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+
+}
+
+@Composable
 fun BottomNavigationBar(navController: NavHostController) {
     val selectedNavigationIndex = rememberSaveable { mutableIntStateOf(0) }
     NavigationBar(
@@ -324,25 +388,37 @@ fun BottomNavigationBar(navController: NavHostController) {
         navigationItems.forEachIndexed { index, item ->
             NavigationBarItem(
                 selected = selectedNavigationIndex.intValue == index, onClick = {
-                selectedNavigationIndex.intValue = index
-                navController.navigate(item.route)
-            }, icon = {
-                Icon(item.icon, contentDescription = item.title)
-            }, label = {
-                Text(
-                    item.title,
-                    color = if (index == selectedNavigationIndex.intValue) MaterialTheme.colorScheme.onSecondaryContainer
-                    else MaterialTheme.colorScheme.onSurfaceVariant
+                    selectedNavigationIndex.intValue = index
+                    navController.navigate(item.route)
+                }, icon = {
+                    Icon(item.icon, contentDescription = item.title)
+                }, label = {
+                    Text(
+                        item.title,
+                        color = if (index == selectedNavigationIndex.intValue) MaterialTheme.colorScheme.onSecondaryContainer
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }, colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer
                 )
-            }, colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                indicatorColor = MaterialTheme.colorScheme.secondaryContainer
-            )
             )
         }
     }
 }
 
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun NotesItemPreview() {
+    GlyphNotesTheme {
+        NotesItem(
+            title = "My grocery list for the week",
+            content = "Don't forget the milk! Also need to buy some bread, cheese, ham, and some fruits like apples and bananas. Maybe some yogurt too.",
+            date = 1678886400000L,
+            category = "Personal"
+        )
+    }
+}
 
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable

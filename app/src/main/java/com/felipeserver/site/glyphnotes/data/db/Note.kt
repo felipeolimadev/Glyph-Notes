@@ -11,6 +11,7 @@ data class Note(
     val title: String,
     val content: String,
     val tags: List<String>,
+    val category: String, // Added category
     val isPinned: Boolean,
     val creationDate: Date,
     val lastEditDate: Date
