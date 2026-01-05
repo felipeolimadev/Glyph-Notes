@@ -18,7 +18,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -52,6 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,6 +64,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -74,10 +78,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.felipeserver.site.glyphnotes.R
+import com.felipeserver.site.glyphnotes.data.db.Note
+import com.felipeserver.site.glyphnotes.data.db.NoteDatabase
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
+import com.felipeserver.site.glyphnotes.ui.theme.dimens
 import com.felipeserver.site.glyphnotes.ui.viewmodel.navigation.NavigationItem.Companion.navigationItems
 import com.felipeserver.site.glyphnotes.ui.viewmodel.navigation.Screen
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModel
+import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModelFactory
+import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.dateFormatter
+import java.util.Date
 
 @Composable
 fun HomeScreen() {
@@ -117,31 +127,83 @@ fun HomeScreen() {
 }
 
 @Composable
-fun HomeContent() {
+fun HomeContent(
+    notesPreview: List<Note>? = null // Novo parâmetro para previews
+) {
+    // Instancia o ViewModel com a Factory
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val noteDao = NoteDatabase.getDatabase(context, scope).noteDao()
+    val factory = NoteViewModelFactory(noteDao)
+    val notesViewModel: NoteViewModel = viewModel(factory = factory)
+    val notesState = if (notesPreview != null) {
+
+        remember { mutableStateOf(notesPreview) }
+    } else {
+
+        notesViewModel.allNotes.collectAsState()
+    }
+    val notes by notesState
+
+    val listState = rememberLazyListState()
+
+
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = Modifier.fillMaxSize()
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Column {
             ProfileBar()
             SearchBarField()
-            PinnedCards()
-            NotesList()
+            LazyColumn(
+                state = listState,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                contentPadding = PaddingValues(vertical = MaterialTheme.dimens.paddingSmall),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.dimens.listSpacing)
+            ) {
+                item {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = MaterialTheme.dimens.paddingLarge),
+                        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.dimens.paddingLarge)
+                    ) {
+                        items(
+                            items = notes, key = { note -> note.id }) { note ->
+                            PinnedCard(
+                                title = note.title,
+                                content = note.content,
+                                date = note.lastEditDate.time,
+                                category = note.category
+                            )
+                        }
+                    }
+                }
+                items(
+                    items = notes, key = { note -> note.id }) { note ->
+                    Box(modifier = Modifier.padding(horizontal = MaterialTheme.dimens.paddingLarge)) {
+                        val dateFixed = remember(note.lastEditDate) { dateFormatter(note.lastEditDate) }
+                        NotesItem(
+                            title = note.title,
+                            content = note.content,
+                            date = dateFixed,
+                            category = note.category
+                        )
+                    }
+                }
+            }
         }
+
+
     }
 }
 
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun ProfileBar() {
+fun ProfileBar(modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
+        modifier = modifier // Aplica o modifier recebido
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(MaterialTheme.dimens.paddingLarge),
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -152,9 +214,9 @@ fun ProfileBar() {
             modifier = Modifier
                 .size(50.dp)
                 .clip(CircleShape)
-                .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                .border(2.dp, MaterialTheme.colorScheme.tertiary, CircleShape)
         )
-        Spacer(modifier = Modifier.padding(8.dp))
+        Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium))
         Column {
             Text(
                 text = "Welcome back, ",
@@ -184,7 +246,9 @@ fun SearchBarField() {
     val filteredItems = items.filter { it.contains(searchQuery, ignoreCase = true) }
 
     SearchBar(
-        modifier = Modifier.padding(5.dp, 5.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = MaterialTheme.dimens.paddingLarge),
         query = searchQuery,
         onQueryChange = { newQuery: String ->
             searchQuery = newQuery
@@ -218,28 +282,32 @@ fun SearchBarField() {
         }) {
         // Conteúdo exibido quando a SearchBar está ativa (Resultados)
         LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(
+                horizontal = MaterialTheme.dimens.paddingLarge,
+                vertical = MaterialTheme.dimens.paddingMedium
+            )
         ) {
-            items(filteredItems) { item ->
-                Text(
-                    text = item, modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            searchQuery = item
-                            active = false
-                        }
-                        .padding(vertical = 14.dp))
+            items(items = filteredItems, key = { it }) { item ->
+                Text(text = item, modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        searchQuery = item
+                        active = false
+                    }
+                    .padding(vertical = MaterialTheme.dimens.paddingLarge))
                 HorizontalDivider()
             }
         }
     }
+    Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingSmall))
 }
 
+
 @Composable
-fun PinnedCards() {
-    val initialColor = Color(0xFF881337)
-    val finalColor = Color(0xFF9F1239)
+fun PinnedCard(title: String, content: String, date: Long, category: String) {
+    val initialColor = MaterialTheme.colorScheme.tertiaryContainer
+    val finalColor = MaterialTheme.colorScheme.tertiary
+
 
     Surface(
         shape = RoundedCornerShape(24.dp), color = Color.Transparent
@@ -249,12 +317,13 @@ fun PinnedCards() {
             colors = CardDefaults.cardColors(
                 containerColor = Color.Transparent
             ), modifier = Modifier
-                .size(200.dp)
+                .size(170.dp)
                 .border(
                     width = 1.dp,
                     color = initialColor.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(24.dp)
                 )
+
                 .background(
                     Brush.linearGradient(
                         colors = listOf(
@@ -273,7 +342,7 @@ fun PinnedCards() {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(MaterialTheme.dimens.paddingLarge),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -283,26 +352,33 @@ fun PinnedCards() {
                         tint = initialColor
 
                     )
-                    Spacer(modifier = Modifier.padding(8.dp))
+                    Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium))
                     Surface(
 
                         shape = RoundedCornerShape(24.dp), color = finalColor.copy(alpha = 0.5f)
 
                     ) {
                         Text(
-                            modifier = Modifier.padding(8.dp, 6.dp, 8.dp, 6.dp), text = "Ideas"
+                            modifier = Modifier.padding(
+                                horizontal = MaterialTheme.dimens.paddingMedium,
+                                vertical = MaterialTheme.dimens.paddingSmall
+                            ),
+                            text = category,
+                            overflow = TextOverflow.Ellipsis, maxLines = 1
                         )
                     }
                 }
                 //Parte de baixo
                 Column(
                     modifier = Modifier
-                        .padding(16.dp)
+                        .padding(MaterialTheme.dimens.paddingLarge)
                         .fillMaxWidth(),
                     horizontalAlignment = Alignment.Start,
                 ) {
                     Text(
-                        text = "Project Alpha",
+                        text = title,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
@@ -310,7 +386,7 @@ fun PinnedCards() {
                         ),
                     )
                     Text(
-                        text = "Update 2h ago"
+                        text = dateFormatter(date), color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -319,62 +395,60 @@ fun PinnedCards() {
 
 }
 
-@Composable
-fun NotesList() {
-    val notesViewModel: NoteViewModel = viewModel()
-    val notes = notesViewModel.allNotes.collectAsState()
-
-    LazyColumn() {
-        items(notes.value) { note ->
-            NotesItem(
-                title = note.title,
-                content = note.content,
-                date = note.lastEditDate.time,
-                category = note.category
-            )
-        }
-    }
-}
 
 @Composable
-fun NotesItem(title: String, content: String, date: Long, category: String) {
+fun NotesItem(title: String, content: String, date: String, category: String) {
 
-    Surface() {
-        Card(
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(MaterialTheme.dimens.paddingLarge)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
+            Row {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Article,
                         contentDescription = "Note",
                         tint = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(modifier = Modifier.padding(8.dp))
+                    Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingSmall))
+
                     Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
+                        text = category,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Spacer(modifier = Modifier.padding(4.dp))
-                Text(
-                    text = content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Spacer(modifier = Modifier.weight(1f))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Text(
+                        text = date,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Normal
+                    )
+                }
             }
+            Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingSmall))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = content,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
-
 }
 
 @Composable
@@ -388,25 +462,24 @@ fun BottomNavigationBar(navController: NavHostController) {
         navigationItems.forEachIndexed { index, item ->
             NavigationBarItem(
                 selected = selectedNavigationIndex.intValue == index, onClick = {
-                    selectedNavigationIndex.intValue = index
-                    navController.navigate(item.route)
-                }, icon = {
-                    Icon(item.icon, contentDescription = item.title)
-                }, label = {
-                    Text(
-                        item.title,
-                        color = if (index == selectedNavigationIndex.intValue) MaterialTheme.colorScheme.onSecondaryContainer
-                        else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }, colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer
+                selectedNavigationIndex.intValue = index
+                navController.navigate(item.route)
+            }, icon = {
+                Icon(item.icon, contentDescription = item.title)
+            }, label = {
+                Text(
+                    item.title,
+                    color = if (index == selectedNavigationIndex.intValue) MaterialTheme.colorScheme.onSecondaryContainer
+                    else MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }, colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                indicatorColor = MaterialTheme.colorScheme.secondaryContainer
+            )
             )
         }
     }
-}
-
+}/*
 @Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun NotesItemPreview() {
@@ -420,12 +493,14 @@ fun NotesItemPreview() {
     }
 }
 
+
+
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun HomeScreenPreview() {
-    GlyphNotesTheme {
-        HomeScreen()
-    }
+GlyphNotesTheme {
+HomeScreen()
+}
 
 }
 
@@ -434,5 +509,34 @@ fun HomeScreenPreview() {
 fun ProfileBarPreview() {
     GlyphNotesTheme {
         ProfileBar()
+    }
+}
+*/
+
+@Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun HomeContentPreview() {
+    GlyphNotesTheme {
+        // Simula dados para evitar chamar o viewModel() em preview
+        val mockNotes = listOf(
+            Note(
+                id = 1,
+                title = "Preview Note",
+                content = "Esta é uma nota de exemplo para o preview.",
+                tags = emptyList(),
+                category = "Preview",
+                isPinned = false,
+                creationDate = Date(),
+                lastEditDate = Date()
+            )
+        )
+
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            HomeContent(notesPreview = mockNotes)
+        }
     }
 }

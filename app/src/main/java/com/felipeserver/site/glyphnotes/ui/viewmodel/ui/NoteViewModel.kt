@@ -1,18 +1,16 @@
 package com.felipeserver.site.glyphnotes.ui.viewmodel.ui
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.felipeserver.site.glyphnotes.data.db.Note
 import com.felipeserver.site.glyphnotes.data.db.NoteDao
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@HiltViewModel
-class NoteViewModel @Inject constructor(private val noteDao: NoteDao) : ViewModel() {
+class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
     private val _allNotes = MutableStateFlow<List<Note>>(emptyList())
     val allNotes: StateFlow<List<Note>> = _allNotes.asStateFlow()
 
@@ -40,5 +38,15 @@ class NoteViewModel @Inject constructor(private val noteDao: NoteDao) : ViewMode
         viewModelScope.launch {
             noteDao.deleteNote(note)
         }
+    }
+}
+
+class NoteViewModelFactory(private val noteDao: NoteDao) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(NoteViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return NoteViewModel(noteDao) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

@@ -3,7 +3,6 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("kotlin-kapt")
-    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -14,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId = "com.felipeserver.site.glyphnotes"
-        minSdk = 24
+        minSdk = 31
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -62,9 +61,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.material3)
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
-
-    implementation("com.google.dagger:hilt-android:2.51.1")
-    kapt("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     kapt("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0")

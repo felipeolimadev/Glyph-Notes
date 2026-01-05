@@ -1,6 +1,5 @@
 package com.felipeserver.site.glyphnotes.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -11,7 +10,12 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -35,6 +39,20 @@ private val LightColorScheme = lightColorScheme(
     */
 )
 
+data class Dimens(
+    val paddingSmall: Dp = 4.dp,
+    val paddingMedium: Dp = 8.dp,
+    val paddingLarge: Dp = 16.dp,
+    val listSpacing: Dp = 12.dp
+)
+
+private val LocalDimens = staticCompositionLocalOf { Dimens() }
+
+val MaterialTheme.dimens: Dimens
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalDimens.current
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GlyphNotesTheme(
@@ -53,9 +71,11 @@ fun GlyphNotesTheme(
         else -> LightColorScheme
     }
 
-    MaterialExpressiveTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalDimens provides Dimens()) {
+        MaterialExpressiveTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }
