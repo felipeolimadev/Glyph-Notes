@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.felipeserver.site.glyphnotes.data.db.Note
 import com.felipeserver.site.glyphnotes.data.db.NoteDao
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,7 +13,10 @@ import kotlinx.coroutines.launch
 
 class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
     private val _allNotes = MutableStateFlow<List<Note>>(emptyList())
+    private val _lastNote = MutableStateFlow<Note?>(null)
     val allNotes: StateFlow<List<Note>> = _allNotes.asStateFlow()
+    val lastNote: StateFlow<Note?> = _lastNote.asStateFlow()
+
 
     init {
         viewModelScope.launch {
@@ -20,6 +24,18 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
                 _allNotes.value = notes
             }
         }
+        viewModelScope.launch {
+            noteDao.getLastId().collect{ note ->
+                _lastNote.value = note
+            }
+        }
+    }
+
+    fun getNoteById(id: Int): Flow<Note?> {
+        return noteDao.getNoteById(id)
+    }
+    fun getLastNoteById(): Flow<Note?> {
+        return noteDao.getLastId()
     }
 
     fun addNote(note: Note) {

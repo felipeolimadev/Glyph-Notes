@@ -5,7 +5,6 @@ import android.content.res.Configuration
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,7 +36,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -74,9 +72,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.data.db.Note
 import com.felipeserver.site.glyphnotes.data.db.NoteDatabase
@@ -86,32 +87,61 @@ import com.felipeserver.site.glyphnotes.ui.viewmodel.navigation.NavigationItem.C
 import com.felipeserver.site.glyphnotes.ui.viewmodel.navigation.Screen
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModel
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModelFactory
-import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.dateFormatter
+import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.dateFormatterRelative
 import java.util.Date
 
 @Composable
 fun HomeScreen() {
     //Navigation
     val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val noteDao = NoteDatabase.getDatabase(context, scope).noteDao()
+    val factory = NoteViewModelFactory(noteDao)
+    val notesViewModel: NoteViewModel = viewModel(factory = factory)
+    val lastNote = notesViewModel.lastNote.collectAsState()
+    val noteId = notesViewModel.getLastNoteById()
+
+
+
+    val bottomBarScreens = listOf(
+        Screen.Home.rout,
+        Screen.Folder.rout,
+        Screen.Calendar.rout,
+        Screen.Settings.rout
+    )
 
     Scaffold(modifier = Modifier.fillMaxSize(), floatingActionButton = {
-        FloatingActionButton(
-            onClick = {},
-            containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
-            elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = "Add")
+        if (currentRoute in bottomBarScreens) {
+            FloatingActionButton(
+                onClick = {
+                    val note = lastNote.value
+                    if(note != null) {
+                        navController.navigate("note_screen/${lastNote.value.id}")
+                    }
+                },
+                containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
+                elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = "Add")
+            }
         }
     }, floatingActionButtonPosition = FabPosition.End, bottomBar = {
-        BottomNavigationBar(navController)
+        if (currentRoute in bottomBarScreens) {
+            BottomNavigationBar(navController)
+        }
     }) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.rout,
-            modifier = Modifier.padding(innerPadding)
+            startDestination = Screen.Home.rout
         ) {
             composable(route = Screen.Home.rout) {
-                HomeContent()
+                HomeContent(paddingValues = innerPadding, onNoteClick = { noteId ->
+                    navController.navigate("note_screen/$noteId")
+                })
             }
             composable(route = Screen.Folder.rout) {
                 FolderScreen()
@@ -122,13 +152,24 @@ fun HomeScreen() {
             composable(route = Screen.Settings.rout) {
                 SettingsScreen()
             }
+            composable(
+                route = "note_screen/{noteId}",
+                arguments = listOf(navArgument("noteId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val noteId = backStackEntry.arguments?.getInt("noteId")
+                if (noteId != null) {
+                    NoteDetailScreen(id = noteId, navController = navController)
+                }
+            }
         }
     }
 }
 
 @Composable
 fun HomeContent(
-    notesPreview: List<Note>? = null // Novo parâmetro para previews
+    notesPreview: List<Note>? = null,
+    onNoteClick: (Int) -> Unit,
+    paddingValues: PaddingValues
 ) {
     // Instancia o ViewModel com a Factory
     val context = LocalContext.current
@@ -150,7 +191,7 @@ fun HomeContent(
 
 
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().padding(paddingValues)
     ) {
         Column {
             ProfileBar()
@@ -168,11 +209,16 @@ fun HomeContent(
                     ) {
                         items(
                             items = notes, key = { note -> note.id }) { note ->
+                            val formattedDate = remember(note.lastEditDate) {
+                                dateFormatterRelative(note.lastEditDate.time)
+                            }
                             PinnedCard(
+                                id = note.id,
                                 title = note.title,
                                 content = note.content,
-                                date = note.lastEditDate.time,
-                                category = note.category
+                                date = formattedDate,
+                                category = note.category,
+                                onClick = { onNoteClick(note.id) }
                             )
                         }
                     }
@@ -180,12 +226,16 @@ fun HomeContent(
                 items(
                     items = notes, key = { note -> note.id }) { note ->
                     Box(modifier = Modifier.padding(horizontal = MaterialTheme.dimens.paddingLarge)) {
-                        val dateFixed = remember(note.lastEditDate) { dateFormatter(note.lastEditDate) }
+                        val formattedDate = remember(note.lastEditDate) {
+                            dateFormatterRelative(note.lastEditDate.time)
+                        }
                         NotesItem(
+                            id = note.id,
                             title = note.title,
                             content = note.content,
-                            date = dateFixed,
-                            category = note.category
+                            date = formattedDate,
+                            category = note.category,
+                            onClick = { onNoteClick(note.id) }
                         )
                     }
                 }
@@ -200,6 +250,7 @@ fun HomeContent(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ProfileBar(modifier: Modifier = Modifier) {
+
     Row(
         modifier = modifier // Aplica o modifier recebido
             .fillMaxWidth()
@@ -240,27 +291,16 @@ fun ProfileBar(modifier: Modifier = Modifier) {
 fun SearchBarField() {
 
     var searchQuery by remember { mutableStateOf("") }
-    val items =
-        listOf("Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig", "Grape", "Honeydew")
-    var active by remember { mutableStateOf(false) }
-    val filteredItems = items.filter { it.contains(searchQuery, ignoreCase = true) }
 
     SearchBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = MaterialTheme.dimens.paddingLarge),
         query = searchQuery,
-        onQueryChange = { newQuery: String ->
-            searchQuery = newQuery
-        },
-        onSearch = { _ ->
-            // Ação a ser tomada quando o usuário pressiona "Enter" ou o ícone de busca
-            active = false
-        },
-        active = active,
-        onActiveChange = {
-            active = it
-        },
+        onQueryChange = { searchQuery = it },
+        onSearch = { },
+        active = false,
+        onActiveChange = { },
         placeholder = {
             Text("Search notes...")
         },
@@ -268,43 +308,25 @@ fun SearchBarField() {
             Icon(Icons.Default.Search, contentDescription = "Search")
         },
         trailingIcon = {
-            if (active) {
-                IconButton(onClick = {
-                    if (searchQuery.isNotEmpty()) {
-                        searchQuery = ""
-                    } else {
-                        active = false
-                    }
-                }) {
+            if (searchQuery.isNotEmpty()) {
+                IconButton(onClick = { searchQuery = "" }) {
                     Icon(Icons.Default.Close, contentDescription = "Clear search")
                 }
             }
-        }) {
-        // Conteúdo exibido quando a SearchBar está ativa (Resultados)
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(
-                horizontal = MaterialTheme.dimens.paddingLarge,
-                vertical = MaterialTheme.dimens.paddingMedium
-            )
-        ) {
-            items(items = filteredItems, key = { it }) { item ->
-                Text(text = item, modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        searchQuery = item
-                        active = false
-                    }
-                    .padding(vertical = MaterialTheme.dimens.paddingLarge))
-                HorizontalDivider()
-            }
-        }
-    }
+        }) { }
     Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingSmall))
 }
 
 
 @Composable
-fun PinnedCard(title: String, content: String, date: Long, category: String) {
+fun PinnedCard(
+    id: Int,
+    title: String,
+    content: String,
+    date: String,
+    category: String,
+    onClick: () -> Unit
+) {
     val initialColor = MaterialTheme.colorScheme.tertiaryContainer
     val finalColor = MaterialTheme.colorScheme.tertiary
 
@@ -314,6 +336,7 @@ fun PinnedCard(title: String, content: String, date: Long, category: String) {
     ) {
 
         Card(
+            onClick = onClick,
             colors = CardDefaults.cardColors(
                 containerColor = Color.Transparent
             ), modifier = Modifier
@@ -386,7 +409,7 @@ fun PinnedCard(title: String, content: String, date: Long, category: String) {
                         ),
                     )
                     Text(
-                        text = dateFormatter(date), color = MaterialTheme.colorScheme.onSurface
+                        text = date, color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -397,10 +420,18 @@ fun PinnedCard(title: String, content: String, date: Long, category: String) {
 
 
 @Composable
-fun NotesItem(title: String, content: String, date: String, category: String) {
+fun NotesItem(
+    id: Int,
+    title: String,
+    content: String,
+    date: String,
+    category: String,
+    onClick: () -> Unit
+) {
 
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
     ) {
         Column(
             modifier = Modifier
@@ -462,20 +493,20 @@ fun BottomNavigationBar(navController: NavHostController) {
         navigationItems.forEachIndexed { index, item ->
             NavigationBarItem(
                 selected = selectedNavigationIndex.intValue == index, onClick = {
-                selectedNavigationIndex.intValue = index
-                navController.navigate(item.route)
-            }, icon = {
-                Icon(item.icon, contentDescription = item.title)
-            }, label = {
-                Text(
-                    item.title,
-                    color = if (index == selectedNavigationIndex.intValue) MaterialTheme.colorScheme.onSecondaryContainer
-                    else MaterialTheme.colorScheme.onSurfaceVariant
+                    selectedNavigationIndex.intValue = index
+                    navController.navigate(item.route)
+                }, icon = {
+                    Icon(item.icon, contentDescription = item.title)
+                }, label = {
+                    Text(
+                        item.title,
+                        color = if (index == selectedNavigationIndex.intValue) MaterialTheme.colorScheme.onSecondaryContainer
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }, colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer
                 )
-            }, colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                indicatorColor = MaterialTheme.colorScheme.secondaryContainer
-            )
             )
         }
     }
@@ -494,7 +525,7 @@ fun NotesItemPreview() {
 }
 
 
-
+*/
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun HomeScreenPreview() {
@@ -503,7 +534,7 @@ HomeScreen()
 }
 
 }
-
+/*
 @Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun ProfileBarPreview() {
@@ -536,7 +567,7 @@ fun HomeContentPreview() {
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            HomeContent(notesPreview = mockNotes)
+            HomeContent(notesPreview = mockNotes, onNoteClick = {}, paddingValues = PaddingValues())
         }
     }
 }

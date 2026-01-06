@@ -7,5 +7,7 @@ sealed class Screen(val rout: String) {
     object Calendar: Screen("calendar_screen")
     object Settings: Screen("setting_screen")
 
+    object NoteDetail: Screen("note_detail_screen/{noteId}")
+
 
 }

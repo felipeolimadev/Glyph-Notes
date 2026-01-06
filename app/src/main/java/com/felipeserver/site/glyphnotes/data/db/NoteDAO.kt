@@ -20,4 +20,7 @@ interface NoteDao {
 
     @Query("SELECT * FROM notes_table WHERE id = :noteId")
     fun getNoteById(noteId: Int): Flow<Note?>
+
+    @Query("SELECT * FROM notes_table ORDER BY id DESC LIMIT 1")
+    fun getLastId(): Flow<Note?>
 }
