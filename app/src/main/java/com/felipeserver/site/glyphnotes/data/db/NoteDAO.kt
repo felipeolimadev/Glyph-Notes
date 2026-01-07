@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 interface NoteDao {
 
     @Upsert
-    suspend fun upsertNote(note: Note)
+    suspend fun upsertNote(note: Note): Long
 
     @Delete
     suspend fun deleteNote(note: Note)

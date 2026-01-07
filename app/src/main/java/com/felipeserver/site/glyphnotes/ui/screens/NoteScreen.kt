@@ -11,7 +11,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -26,10 +25,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,14 +41,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.felipeserver.site.glyphnotes.R
-import com.felipeserver.site.glyphnotes.data.db.Note
 import com.felipeserver.site.glyphnotes.data.db.NoteDatabase
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
 import com.felipeserver.site.glyphnotes.ui.theme.dimens
+import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteDetailEvent
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModel
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModelFactory
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.dateFormatterRelative
-import kotlinx.coroutines.delay
 import java.util.Date
 
 @Composable
@@ -62,43 +58,42 @@ fun NoteDetailScreen(id: Int, navController: NavController) {
     val noteDao = NoteDatabase.getDatabase(context, scope).noteDao()
     val factory = NoteViewModelFactory(noteDao)
     val notesViewModel: NoteViewModel = viewModel(factory = factory)
-    val note by notesViewModel.getNoteById(id).collectAsState(initial = null)
+    val uiState by notesViewModel.uiState.collectAsState()
 
-
-
-    note?.let { currentNote ->
-        NoteDetail(
-            note = currentNote,
-            navController = navController,
-            onNoteChange = { newTitle, newContent ->
-                val updatedNote = currentNote.copy(
-                    title = newTitle,
-                    content = newContent,
-                    lastEditDate = Date()
-                )
-                notesViewModel.updateNote(updatedNote)
-            })
+    LaunchedEffect(key1 = id) {
+        notesViewModel.onEvent(NoteDetailEvent.LoadNote(id))
     }
+
+    NoteDetailUi(
+        title = uiState.title,
+        content = uiState.content,
+        lastEditDate = uiState.lastEditDate,
+        onTitleChange = { newTitle ->
+            notesViewModel.onEvent(NoteDetailEvent.OnTitleChange(newTitle))
+        },
+        onContentChange = { newContent ->
+            notesViewModel.onEvent(NoteDetailEvent.OnContentChange(newContent))
+        },
+        onBackPress = {
+            notesViewModel.onEvent(NoteDetailEvent.OnBackPressed)
+            navController.popBackStack()
+        }
+    )
+
+
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NoteDetail(
-    note: Note,
-    navController: NavController,
-    onNoteChange: (title: String, content: String) -> Unit
+fun NoteDetailUi(
+    title: String,
+    content: String,
+    lastEditDate: Date,
+    onTitleChange: (String) -> Unit,
+    onContentChange: (String) -> Unit,
+    onBackPress: () -> Unit
 ) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
-
-    var content by remember(note.id) { mutableStateOf(note.content) }
-    var title by remember(note.id) { mutableStateOf(note.title) }
-
-    LaunchedEffect(title, content) {
-        delay(300L)
-        if (title != note.title || content != note.content) {
-            onNoteChange(title, content)
-        }
-    }
 
     Scaffold(
         modifier = Modifier
@@ -115,9 +110,12 @@ fun NoteDetail(
                         verticalArrangement = Arrangement.Bottom,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(text = stringResource(R.string.last_edited), style = MaterialTheme.typography.labelLarge)
-                        val formattedDate = remember(note.lastEditDate) {
-                            dateFormatterRelative(note.lastEditDate.time)
+                        Text(
+                            text = stringResource(R.string.last_edited),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                        val formattedDate = remember(lastEditDate) {
+                            dateFormatterRelative(lastEditDate.time)
                         }
                         Text(
                             text = formattedDate,
@@ -129,7 +127,7 @@ fun NoteDetail(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBackPress) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Localized description"
@@ -153,8 +151,9 @@ fun NoteDetail(
         ) {
             TextField(
                 value = title,
-                onValueChange = { title = it },
-                textStyle = MaterialTheme.typography.headlineSmallEmphasized.copy(
+                onValueChange = onTitleChange,
+                placeholder = { Text(text = "Title") },
+                textStyle = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight(500)
                 ),
                 colors = TextFieldDefaults.colors(
@@ -169,6 +168,7 @@ fun NoteDetail(
             )
             TextField(
                 modifier = Modifier.fillMaxSize(),
+                placeholder = { Text(text = "Content") },
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
@@ -178,9 +178,7 @@ fun NoteDetail(
                     disabledIndicatorColor = Color.Transparent,
                 ),
                 value = content,
-                onValueChange = { newText ->
-                    content = newText
-                })
+                onValueChange = onContentChange)
         }
     }
 }
@@ -213,19 +211,13 @@ fun TagBarPreview() {
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 fun NoteDetailPreview() {
     GlyphNotesTheme {
-        val sampleNote = Note(
-            id = 1,
+        NoteDetailUi(
             title = "Sample Note",
             content = "This is the content of the sample note.",
-            tags = listOf("sample", "preview"),
-            category = "General",
-            isPinned = false,
-            creationDate = Date(),
-            lastEditDate = Date()
+            lastEditDate = Date(),
+            onTitleChange = {},
+            onContentChange = {},
+            onBackPress = {}
         )
-        NoteDetail(
-            note = sampleNote,
-            navController = NavController(LocalContext.current),
-            onNoteChange = { _, _ -> })
     }
 }

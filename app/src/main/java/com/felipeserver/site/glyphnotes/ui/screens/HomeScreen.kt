@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -49,11 +50,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,6 +70,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -94,18 +94,36 @@ import java.util.Date
 fun HomeScreen() {
     //Navigation
     val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val noteDao = NoteDatabase.getDatabase(context, scope).noteDao()
     val factory = NoteViewModelFactory(noteDao)
     val notesViewModel: NoteViewModel = viewModel(factory = factory)
-    val lastNote = notesViewModel.lastNote.collectAsState()
-    val noteId = notesViewModel.getLastNoteById()
+    val allNotes by notesViewModel.allNotes.collectAsState()
+
+    HomeScreenStateless(
+        navController = navController,
+        notes = allNotes,
+        onNoteClick = { noteId ->
+            navController.navigate("note_screen/$noteId")
+        },
+        onFabClick = {
+            navController.navigate("note_screen/-1")
+        }
+    )
+}
 
 
+@Composable
+fun HomeScreenStateless(
+    navController: NavHostController,
+    notes: List<Note>,
+    onNoteClick: (Int) -> Unit,
+    onFabClick: () -> Unit
+) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
     val bottomBarScreens = listOf(
         Screen.Home.rout,
@@ -117,12 +135,7 @@ fun HomeScreen() {
     Scaffold(modifier = Modifier.fillMaxSize(), floatingActionButton = {
         if (currentRoute in bottomBarScreens) {
             FloatingActionButton(
-                onClick = {
-                    val note = lastNote.value
-                    if(note != null) {
-                        navController.navigate("note_screen/${lastNote.value.id}")
-                    }
-                },
+                onClick = onFabClick,
                 containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
                 elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
             ) {
@@ -139,9 +152,11 @@ fun HomeScreen() {
             startDestination = Screen.Home.rout
         ) {
             composable(route = Screen.Home.rout) {
-                HomeContent(paddingValues = innerPadding, onNoteClick = { noteId ->
-                    navController.navigate("note_screen/$noteId")
-                })
+                HomeContent(
+                    notes = notes,
+                    onNoteClick = onNoteClick,
+                    paddingValues = innerPadding
+                )
             }
             composable(route = Screen.Folder.rout) {
                 FolderScreen()
@@ -167,33 +182,22 @@ fun HomeScreen() {
 
 @Composable
 fun HomeContent(
-    notesPreview: List<Note>? = null,
+    notes: List<Note>,
     onNoteClick: (Int) -> Unit,
     paddingValues: PaddingValues
 ) {
-    // Instancia o ViewModel com a Factory
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val noteDao = NoteDatabase.getDatabase(context, scope).noteDao()
-    val factory = NoteViewModelFactory(noteDao)
-    val notesViewModel: NoteViewModel = viewModel(factory = factory)
-    val notesState = if (notesPreview != null) {
-
-        remember { mutableStateOf(notesPreview) }
-    } else {
-
-        notesViewModel.allNotes.collectAsState()
-    }
-    val notes by notesState
 
     val listState = rememberLazyListState()
 
-
-
     Box(
-        modifier = Modifier.fillMaxSize().padding(paddingValues)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues),
+        contentAlignment = Alignment.TopCenter
     ) {
-        Column {
+        Column(
+            verticalArrangement = Arrangement.Top
+        ) {
             ProfileBar()
             SearchBarField()
             LazyColumn(
@@ -208,7 +212,7 @@ fun HomeContent(
                         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.dimens.paddingLarge)
                     ) {
                         items(
-                            items = notes, key = { note -> note.id }) { note ->
+                            items = notes.filter { it.isPinned }, key = { note -> note.id }) { note ->
                             val formattedDate = remember(note.lastEditDate) {
                                 dateFormatterRelative(note.lastEditDate.time)
                             }
@@ -241,8 +245,6 @@ fun HomeContent(
                 }
             }
         }
-
-
     }
 }
 
@@ -254,7 +256,7 @@ fun ProfileBar(modifier: Modifier = Modifier) {
     Row(
         modifier = modifier // Aplica o modifier recebido
             .fillMaxWidth()
-            .padding(MaterialTheme.dimens.paddingLarge),
+            .padding(horizontal = MaterialTheme.dimens.paddingLarge),
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -295,7 +297,8 @@ fun SearchBarField() {
     SearchBar(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = MaterialTheme.dimens.paddingLarge),
+            .padding(horizontal = MaterialTheme.dimens.paddingLarge)
+            .offset(x = 0.dp, y = -15.dp),
         query = searchQuery,
         onQueryChange = { searchQuery = it },
         onSearch = { },
@@ -484,71 +487,85 @@ fun NotesItem(
 
 @Composable
 fun BottomNavigationBar(navController: NavHostController) {
-    val selectedNavigationIndex = rememberSaveable { mutableIntStateOf(0) }
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
     NavigationBar(
         containerColor = BottomAppBarDefaults.containerColor,
         tonalElevation = BottomAppBarDefaults.ContainerElevation,
         windowInsets = WindowInsets(0, 0, 0, 0)
     ) {
-        navigationItems.forEachIndexed { index, item ->
+        navigationItems.forEach { item ->
+            val selected = currentRoute == item.route
             NavigationBarItem(
-                selected = selectedNavigationIndex.intValue == index, onClick = {
-                    selectedNavigationIndex.intValue = index
-                    navController.navigate(item.route)
-                }, icon = {
+                selected = selected,
+                onClick = {
+                    navController.navigate(item.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                icon = {
                     Icon(item.icon, contentDescription = item.title)
-                }, label = {
-                    Text(
-                        item.title,
-                        color = if (index == selectedNavigationIndex.intValue) MaterialTheme.colorScheme.onSecondaryContainer
-                        else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }, colors = NavigationBarItemDefaults.colors(
+                },
+                label = {
+                    Text(item.title)
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    selectedTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
                     selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     indicatorColor = MaterialTheme.colorScheme.secondaryContainer
                 )
             )
         }
     }
-}/*
-@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+}
+
+@Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-fun NotesItemPreview() {
+fun HomeScreenPreview() {
     GlyphNotesTheme {
-        NotesItem(
-            title = "My grocery list for the week",
-            content = "Don't forget the milk! Also need to buy some bread, cheese, ham, and some fruits like apples and bananas. Maybe some yogurt too.",
-            date = 1678886400000L,
-            category = "Personal"
+        val mockNotes = listOf(
+            Note(
+                id = 1,
+                title = "Preview Note 1",
+                content = "Esta é uma nota de exemplo para o preview.",
+                tags = emptyList(),
+                category = "Preview",
+                isPinned = true,
+                creationDate = Date(),
+                lastEditDate = Date()
+            ),
+            Note(
+                id = 2,
+                title = "Preview Note 2",
+                content = "Esta é outra nota de exemplo.",
+                tags = emptyList(),
+                category = "Work",
+                isPinned = false,
+                creationDate = Date(),
+                lastEditDate = Date()
+            )
+        )
+
+        HomeScreenStateless(
+            navController = rememberNavController(),
+            notes = mockNotes,
+            onNoteClick = {},
+            onFabClick = {}
         )
     }
 }
 
-
-*/
-@Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Composable
-fun HomeScreenPreview() {
-GlyphNotesTheme {
-HomeScreen()
-}
-
-}
-/*
 @Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Composable
-fun ProfileBarPreview() {
-    GlyphNotesTheme {
-        ProfileBar()
-    }
-}
-*/
-
-@Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun HomeContentPreview() {
     GlyphNotesTheme {
-        // Simula dados para evitar chamar o viewModel() em preview
         val mockNotes = listOf(
             Note(
                 id = 1,
@@ -567,7 +584,7 @@ fun HomeContentPreview() {
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            HomeContent(notesPreview = mockNotes, onNoteClick = {}, paddingValues = PaddingValues())
+            HomeContent(notes = mockNotes, onNoteClick = {}, paddingValues = PaddingValues())
         }
     }
 }
