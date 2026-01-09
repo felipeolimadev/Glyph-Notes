@@ -1,50 +1,29 @@
 package com.felipeserver.site.glyphnotes.ui.screens
 
-
 import android.content.res.Configuration
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.BottomAppBarDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,45 +35,47 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.data.db.Note
 import com.felipeserver.site.glyphnotes.data.db.NoteDatabase
+import com.felipeserver.site.glyphnotes.ui.components.BottomNavigationBar
+import com.felipeserver.site.glyphnotes.ui.components.NoteItem
+import com.felipeserver.site.glyphnotes.ui.components.ProfileBar
+import com.felipeserver.site.glyphnotes.ui.components.SearchBarField
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
 import com.felipeserver.site.glyphnotes.ui.theme.dimens
-import com.felipeserver.site.glyphnotes.ui.viewmodel.navigation.NavigationItem.Companion.navigationItems
 import com.felipeserver.site.glyphnotes.ui.viewmodel.navigation.Screen
+import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteDetailEvent
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModel
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModelFactory
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.dateFormatterRelative
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
+import java.util.Locale
 
 @Composable
-fun HomeScreen() {
-    //Navigation
+fun HomeScreen(
+    // Adicionando argumentos opcionais para facilitar a pré-visualização sem inicializar o ViewModel
+    onNoteClick: (Int) -> Unit = {},
+    onFabClick: () -> Unit = {},
+    onNoteDismissed: (Note) -> Unit = {},
+    initialNotes: List<Note> = emptyList(),
+    initialRoute: String = Screen.Home.rout
+) {
+    // Navigation Setup
     val navController = rememberNavController()
 
+    // ViewModel Setup (Injeção de Estado)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val noteDao = NoteDatabase.getDatabase(context, scope).noteDao()
@@ -102,70 +83,91 @@ fun HomeScreen() {
     val notesViewModel: NoteViewModel = viewModel(factory = factory)
     val allNotes by notesViewModel.allNotes.collectAsState()
 
-    HomeScreenStateless(
-        navController = navController,
-        notes = allNotes,
-        onNoteClick = { noteId ->
+    // Search state
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Use initialNotes se estiver em preview, caso contrário use o estado do ViewModel
+    val notesToDisplay = if (initialNotes.isNotEmpty()) initialNotes else allNotes
+
+    // Callbacks para interagir com o ViewModel
+    val noteClicked: (Int) -> Unit = { noteId ->
+        if (initialNotes.isNotEmpty()) {
+            // Em preview, apenas simula a navegação (ou chama o callback passado)
+            onNoteClick(noteId)
+        } else {
             navController.navigate("note_screen/$noteId")
-        },
-        onFabClick = {
+        }
+    }
+
+    val fabClicked: () -> Unit = {
+        if (initialNotes.isNotEmpty()) {
+            onFabClick()
+        } else {
             navController.navigate("note_screen/-1")
         }
-    )
-}
+    }
 
+    val noteDismissed: (Note) -> Unit = { note ->
+        if (initialNotes.isNotEmpty()) {
+            onNoteDismissed(note)
+        } else {
+            notesViewModel.onEvent(NoteDetailEvent.DeleteNote(note))
+        }
+    }
 
-@Composable
-fun HomeScreenStateless(
-    navController: NavHostController,
-    notes: List<Note>,
-    onNoteClick: (Int) -> Unit,
-    onFabClick: () -> Unit
-) {
+    // UI Structure (Scaffold e NavHost)
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+    val currentRoute = navBackStackEntry?.destination?.route ?: initialRoute
 
     val bottomBarScreens = listOf(
-        Screen.Home.rout,
-        Screen.Folder.rout,
-        Screen.Calendar.rout,
-        Screen.Settings.rout
+        Screen.Home.rout, Screen.Favorite.rout, Screen.Calendar.rout, Screen.Settings.rout
     )
 
-    Scaffold(modifier = Modifier.fillMaxSize(), floatingActionButton = {
-        if (currentRoute in bottomBarScreens) {
-            FloatingActionButton(
-                onClick = onFabClick,
-                containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
-                elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add")
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        floatingActionButton = {
+            if (currentRoute in bottomBarScreens) {
+                FloatingActionButton(
+                    onClick = fabClicked,
+                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
+                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add")
+                }
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End,
+        bottomBar = {
+            if (currentRoute in bottomBarScreens) {
+                BottomNavigationBar(navController)
             }
         }
-    }, floatingActionButtonPosition = FabPosition.End, bottomBar = {
-        if (currentRoute in bottomBarScreens) {
-            BottomNavigationBar(navController)
-        }
-    }) { innerPadding ->
+    ) { innerPadding ->
         NavHost(
-            navController = navController,
-            startDestination = Screen.Home.rout
+            navController = navController, startDestination = initialRoute
         ) {
             composable(route = Screen.Home.rout) {
                 HomeContent(
-                    notes = notes,
-                    onNoteClick = onNoteClick,
+                    notes = notesToDisplay,
+                    onNoteClick = noteClicked,
+                    paddingValues = innerPadding,
+                    onNoteDismissed = noteDismissed,
+                    searchQuery = searchQuery,
+                    onQueryChange = { searchQuery = it }
+                )
+            }
+            composable(route = Screen.Favorite.rout) {
+                FavoritesScreen(
+                    notes = notesToDisplay,
+                    onNoteClick = noteClicked,
                     paddingValues = innerPadding
                 )
             }
-            composable(route = Screen.Folder.rout) {
-                FolderScreen()
-            }
             composable(route = Screen.Calendar.rout) {
-                CalendarScreen()
+                CalendarScreen(paddingValues = innerPadding)
             }
             composable(route = Screen.Settings.rout) {
-                SettingsScreen()
+                SettingsScreen(paddingValues = innerPadding)
             }
             composable(
                 route = "note_screen/{noteId}",
@@ -180,43 +182,109 @@ fun HomeScreenStateless(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeContent(
     notes: List<Note>,
     onNoteClick: (Int) -> Unit,
-    paddingValues: PaddingValues
+    paddingValues: PaddingValues,
+    onNoteDismissed: (Note) -> Unit,
+    searchQuery: String,
+    onQueryChange: (String) -> Unit
 ) {
+    // Estado puramente de UI (scroll) que pertence a este Composable Stateless
+    val listStateNotes = rememberLazyListState()
 
-    val listState = rememberLazyListState()
+    // Filtra as notas com base na query de busca
+    val filteredNotes = remember(notes, searchQuery) {
+        if (searchQuery.isBlank()) {
+            notes
+        } else {
+            notes.filter { note ->
+                note.title.contains(searchQuery, ignoreCase = true) ||
+                        note.content.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
+    // Separa as notas entre fixadas e normais
+    val pinnedNotes = remember(filteredNotes) { filteredNotes.filter { it.isPinned } }
+    val normalNotes = remember(filteredNotes) { filteredNotes.filter { !it.isPinned } }
+
+    // Agrupa as notas normais por data para a timeline
+    val groupedNormalNotes = remember(normalNotes) {
+        val monthYearFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
+
+        normalNotes.groupBy { getNoteGroup(it.lastEditDate) }
+            // Ordena os grupos em ordem cronológica inversa (mais recente primeiro)
+            .toSortedMap(compareByDescending { header ->
+                when (header) {
+                    "Hoje" -> Calendar.getInstance().time // Data de hoje para ordenação máxima
+                    "Ontem" -> Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }.time // Data de ontem
+                    else -> {
+                        // Converte "MM/yyyy" de volta para uma data para ordenação
+                        try {
+                            monthYearFormat.parse(header) ?: Date(0)
+                        } catch (e: Exception) {
+                            Date(0) // Em caso de erro de parse
+                        }
+                    }
+                }
+            })
+    }
+
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues),
+            .padding(paddingValues)
+            .background(Color.Transparent),
         contentAlignment = Alignment.TopCenter
     ) {
         Column(
-            verticalArrangement = Arrangement.Top
+            modifier = Modifier.background(Color.Transparent),
+            verticalArrangement = Arrangement.Top,
         ) {
             ProfileBar()
-            SearchBarField()
+            SearchBarField(
+                query = searchQuery,
+                onQueryChange = onQueryChange
+            )
+
+            // A timeline agora é a visualização principal
             LazyColumn(
-                state = listState,
+                modifier = Modifier.weight(1f), // Garante que a lista ocupe o espaço disponível e seja rolável
+                state = listStateNotes,
                 horizontalAlignment = Alignment.CenterHorizontally,
-                contentPadding = PaddingValues(vertical = MaterialTheme.dimens.paddingSmall),
-                verticalArrangement = Arrangement.spacedBy(MaterialTheme.dimens.listSpacing)
+                contentPadding = PaddingValues(vertical = MaterialTheme.dimens.paddingLarge),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.dimens.paddingLarge)
             ) {
-                item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = MaterialTheme.dimens.paddingLarge),
-                        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.dimens.paddingLarge)
-                    ) {
-                        items(
-                            items = notes.filter { it.isPinned }, key = { note -> note.id }) { note ->
-                            val formattedDate = remember(note.lastEditDate) {
-                                dateFormatterRelative(note.lastEditDate.time)
-                            }
-                            PinnedCard(
+                // Seção da timeline com cabeçalhos "grudentos"
+                groupedNormalNotes.forEach { (header, notesInGroup) ->
+                    stickyHeader {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        ) {
+                            Text(
+                                text = header,
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier
+                                    .background(MaterialTheme.colorScheme.background)
+                                    .padding(horizontal = MaterialTheme.dimens.paddingLarge, vertical = MaterialTheme.dimens.paddingSmall)
+                            )
+                        }
+                    }
+                    items(
+                        items = notesInGroup,
+                        key = { note -> "normal-${note.id}" },
+                    ) { note ->
+                        val formattedDate = remember(note.lastEditDate) {
+                            dateFormatterRelative(note.lastEditDate.time)
+                        }
+                        // Usando um padding horizontal por item para centralizar visualmente
+                        Box(modifier = Modifier.padding(horizontal = MaterialTheme.dimens.paddingLarge)) {
+                            NoteItem(
                                 id = note.id,
                                 title = note.title,
                                 content = note.content,
@@ -227,304 +295,34 @@ fun HomeContent(
                         }
                     }
                 }
-                items(
-                    items = notes, key = { note -> note.id }) { note ->
-                    Box(modifier = Modifier.padding(horizontal = MaterialTheme.dimens.paddingLarge)) {
-                        val formattedDate = remember(note.lastEditDate) {
-                            dateFormatterRelative(note.lastEditDate.time)
-                        }
-                        NotesItem(
-                            id = note.id,
-                            title = note.title,
-                            content = note.content,
-                            date = formattedDate,
-                            category = note.category,
-                            onClick = { onNoteClick(note.id) }
-                        )
-                    }
-                }
             }
         }
     }
 }
 
+private fun getNoteGroup(date: Date): String {
+    val calendar = Calendar.getInstance()
+    val todayStart = calendar.apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-fun ProfileBar(modifier: Modifier = Modifier) {
+    calendar.add(Calendar.DAY_OF_YEAR, -1)
+    val yesterdayStart = calendar.timeInMillis
 
-    Row(
-        modifier = modifier // Aplica o modifier recebido
-            .fillMaxWidth()
-            .padding(horizontal = MaterialTheme.dimens.paddingLarge),
-        horizontalArrangement = Arrangement.Start,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Image(
-            painter = painterResource(id = R.drawable.dog),
-            contentDescription = "Profile Picture",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(50.dp)
-                .clip(CircleShape)
-                .border(2.dp, MaterialTheme.colorScheme.tertiary, CircleShape)
-        )
-        Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium))
-        Column {
-            Text(
-                text = "Welcome back, ",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Left,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "Felipe",
-                style = MaterialTheme.typography.headlineSmall,
-                textAlign = TextAlign.Left,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+    return when {
+        date.time >= todayStart -> "Hoje"
+        date.time >= yesterdayStart -> "Ontem"
+        else -> {
+            // Usa o formato Mês/Ano para as demais datas
+            val monthYearFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
+            monthYearFormat.format(date)
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SearchBarField() {
-
-    var searchQuery by remember { mutableStateOf("") }
-
-    SearchBar(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = MaterialTheme.dimens.paddingLarge)
-            .offset(x = 0.dp, y = -15.dp),
-        query = searchQuery,
-        onQueryChange = { searchQuery = it },
-        onSearch = { },
-        active = false,
-        onActiveChange = { },
-        placeholder = {
-            Text("Search notes...")
-        },
-        leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = "Search")
-        },
-        trailingIcon = {
-            if (searchQuery.isNotEmpty()) {
-                IconButton(onClick = { searchQuery = "" }) {
-                    Icon(Icons.Default.Close, contentDescription = "Clear search")
-                }
-            }
-        }) { }
-    Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingSmall))
-}
-
-
-@Composable
-fun PinnedCard(
-    id: Int,
-    title: String,
-    content: String,
-    date: String,
-    category: String,
-    onClick: () -> Unit
-) {
-    val initialColor = MaterialTheme.colorScheme.tertiaryContainer
-    val finalColor = MaterialTheme.colorScheme.tertiary
-
-
-    Surface(
-        shape = RoundedCornerShape(24.dp), color = Color.Transparent
-    ) {
-
-        Card(
-            onClick = onClick,
-            colors = CardDefaults.cardColors(
-                containerColor = Color.Transparent
-            ), modifier = Modifier
-                .size(170.dp)
-                .border(
-                    width = 1.dp,
-                    color = initialColor.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(24.dp)
-                )
-
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            initialColor.copy(alpha = 0.3f), finalColor.copy(alpha = 0.2f)
-                        ), start = Offset.Zero, end = Offset.Infinite
-
-                    )
-                )
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.SpaceBetween,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                //Parte de cima
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(MaterialTheme.dimens.paddingLarge),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = "Heart",
-                        tint = initialColor
-
-                    )
-                    Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium))
-                    Surface(
-
-                        shape = RoundedCornerShape(24.dp), color = finalColor.copy(alpha = 0.5f)
-
-                    ) {
-                        Text(
-                            modifier = Modifier.padding(
-                                horizontal = MaterialTheme.dimens.paddingMedium,
-                                vertical = MaterialTheme.dimens.paddingSmall
-                            ),
-                            text = category,
-                            overflow = TextOverflow.Ellipsis, maxLines = 1
-                        )
-                    }
-                }
-                //Parte de baixo
-                Column(
-                    modifier = Modifier
-                        .padding(MaterialTheme.dimens.paddingLarge)
-                        .fillMaxWidth(),
-                    horizontalAlignment = Alignment.Start,
-                ) {
-                    Text(
-                        text = title,
-                        overflow = TextOverflow.Ellipsis,
-                        maxLines = 1,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                    )
-                    Text(
-                        text = date, color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
-    }
-
-}
-
-
-@Composable
-fun NotesItem(
-    id: Int,
-    title: String,
-    content: String,
-    date: String,
-    category: String,
-    onClick: () -> Unit
-) {
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(MaterialTheme.dimens.paddingLarge)
-        ) {
-            Row {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Article,
-                        contentDescription = "Note",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingSmall))
-
-                    Text(
-                        text = category,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Text(
-                        text = date,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Normal
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingSmall))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = content,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-fun BottomNavigationBar(navController: NavHostController) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
-
-    NavigationBar(
-        containerColor = BottomAppBarDefaults.containerColor,
-        tonalElevation = BottomAppBarDefaults.ContainerElevation,
-        windowInsets = WindowInsets(0, 0, 0, 0)
-    ) {
-        navigationItems.forEach { item ->
-            val selected = currentRoute == item.route
-            NavigationBarItem(
-                selected = selected,
-                onClick = {
-                    navController.navigate(item.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                icon = {
-                    Icon(item.icon, contentDescription = item.title)
-                },
-                label = {
-                    Text(item.title)
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    selectedTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer
-                )
-            )
-        }
-    }
-}
 
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
@@ -540,8 +338,7 @@ fun HomeScreenPreview() {
                 isPinned = true,
                 creationDate = Date(),
                 lastEditDate = Date()
-            ),
-            Note(
+            ), Note(
                 id = 2,
                 title = "Preview Note 2",
                 content = "Esta é outra nota de exemplo.",
@@ -553,12 +350,8 @@ fun HomeScreenPreview() {
             )
         )
 
-        HomeScreenStateless(
-            navController = rememberNavController(),
-            notes = mockNotes,
-            onNoteClick = {},
-            onFabClick = {}
-        )
+        // Chamando o novo HomeScreen consolidado, mas passando dados mockados
+        HomeScreen(initialNotes = mockNotes, initialRoute = Screen.Home.rout)
     }
 }
 
@@ -578,13 +371,5 @@ fun HomeContentPreview() {
                 lastEditDate = Date()
             )
         )
-
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            HomeContent(notes = mockNotes, onNoteClick = {}, paddingValues = PaddingValues())
-        }
     }
 }

@@ -41,6 +41,7 @@ android {
     }
     buildFeatures {
         compose = true
+        viewBinding = true
     }
 }
 
@@ -62,7 +63,8 @@ dependencies {
     implementation(libs.material3)
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
-
+    implementation("androidx.glance:glance-appwidget:1.1.1")
+    implementation("androidx.glance:glance-material3:1.1.1")
     kapt("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0")
 
     kapt(libs.androidx.room.compiler)
@@ -73,4 +75,6 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    debugImplementation("androidx.glance:glance-appwidget-preview:1.1.1")
+    debugImplementation("androidx.glance:glance-preview:1.1.1")
 }

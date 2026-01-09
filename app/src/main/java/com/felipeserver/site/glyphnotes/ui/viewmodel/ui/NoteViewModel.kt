@@ -18,9 +18,13 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
     private val _allNotes = MutableStateFlow<List<Note>>(emptyList())
     private val _lastNote = MutableStateFlow<Note?>(null)
     private val _uiState = MutableStateFlow(NoteDetailUiState())
+
+
+
     val allNotes: StateFlow<List<Note>> = _allNotes.asStateFlow()
     val lastNote: StateFlow<Note?> = _lastNote.asStateFlow()
     val uiState: StateFlow<NoteDetailUiState> = _uiState.asStateFlow()
+
 
 
     init {
@@ -42,6 +46,7 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
             is NoteDetailEvent.OnTitleChange -> updateTitle(event.title)
             is NoteDetailEvent.OnContentChange -> updateContent(event.content)
             is NoteDetailEvent.SaveNote -> saveNote()
+            is NoteDetailEvent.DeleteNote -> deleteNote(event.note)
             is NoteDetailEvent.OnBackPressed -> {
                 saveJob?.cancel()
 
@@ -98,6 +103,12 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
         saveJob = viewModelScope.launch {
             delay(500L) // Espera 500ms
             saveNote()
+        }
+    }
+
+    private fun deleteNote(note: Note){
+        viewModelScope.launch {
+            noteDao.deleteNote(note)
         }
     }
 
@@ -174,5 +185,7 @@ sealed interface NoteDetailEvent {
     data class OnContentChange(val content: String) : NoteDetailEvent
     object SaveNote : NoteDetailEvent
     object OnBackPressed : NoteDetailEvent
+
+    data class DeleteNote(val note: Note) : NoteDetailEvent
 
 }
