@@ -65,6 +65,7 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("androidx.glance:glance-material3:1.1.1")
+    implementation("androidx.datastore:datastore-preferences:1.2.0")
     kapt("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0")
 
     kapt(libs.androidx.room.compiler)

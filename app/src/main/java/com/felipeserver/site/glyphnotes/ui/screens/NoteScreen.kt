@@ -1,5 +1,6 @@
 package com.felipeserver.site.glyphnotes.ui.screens
 
+import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -339,7 +340,7 @@ fun TagItem(modifier: Modifier, tag: String) {
 }
 
 
-@Preview(name = "Empty Note", showBackground = true)
+@Preview(name = "Empty Note", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 private fun NoteDetailUiPreview_Empty() {
     GlyphNotesTheme {
@@ -357,7 +358,7 @@ private fun NoteDetailUiPreview_Empty() {
     }
 }
 
-@Preview(name = "Filled Note", showBackground = true, uiMode = 3)
+@Preview(name = "Filled Note", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 private fun NoteDetailUiPreview_Filled() {
     GlyphNotesTheme {
