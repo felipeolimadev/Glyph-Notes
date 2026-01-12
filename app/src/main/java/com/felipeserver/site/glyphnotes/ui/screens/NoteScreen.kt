@@ -1,6 +1,5 @@
 package com.felipeserver.site.glyphnotes.ui.screens
 
-import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -64,6 +63,13 @@ import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModelFactory
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.dateFormatterRelative
 import java.util.Date
 
+/**
+ * Tela "inteligente" que funciona como um contêiner para a visualização de detalhes da nota.
+ * É responsável por obter dados do [NoteViewModel], coletar o estado da UI e lidar com a navegação.
+ *
+ * @param id O ID da nota a ser exibida. Se o ID for -1, a tela abre em modo de criação para uma nova nota.
+ * @param navController O [NavController] usado para navegar de volta da tela.
+ */
 @Composable
 fun NoteDetailScreen(id: Int, navController: NavController) {
     // Instancia o ViewModel com a Factory
@@ -100,10 +106,22 @@ fun NoteDetailScreen(id: Int, navController: NavController) {
             navController.popBackStack()
         }
     )
-
-
 }
 
+/**
+ * Composable "burro" e sem estado, responsável por renderizar a interface do usuário da tela de detalhes da nota.
+ * Ele exibe os dados da nota e delega todos os eventos de interação do usuário para o chamador por meio de funções lambda.
+ *
+ * @param title O título atual da nota a ser exibido no campo de texto do título.
+ * @param content O conteúdo principal da nota a ser exibido no campo de texto do conteúdo.
+ * @param tags A lista de tags atualmente associadas à nota.
+ * @param allTags Uma lista completa de todas as tags disponíveis no aplicativo, usada para o ModalBottomSheet de seleção de tags.
+ * @param lastEditDate A data da última edição da nota, exibida na barra de aplicativos superior.
+ * @param onTitleChange Um retorno de chamada invocado quando o usuário digita no campo de texto do título.
+ * @param onContentChange Um retorno de chamada invocado quando o usuário digita no campo de texto do conteúdo.
+ * @param onTagsChange Um retorno de chamada invocado quando o usuário confirma sua seleção de tags no ModalBottomSheet.
+ * @param onBackPress Um retorno de chamada invocado quando o usuário toca no ícone de navegação para voltar.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteDetailUi(
@@ -133,7 +151,11 @@ fun NoteDetailUi(
             sheetState = sheetState
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Select Tags", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 16.dp))
+                Text(
+                    "Select Tags",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
 
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     items(items = allTags) { tag ->
@@ -141,7 +163,7 @@ fun NoteDetailUi(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { 
+                                .clickable {
                                     val currentTags = tempSelectedTags.toMutableList()
                                     if (currentTags.contains(tag)) {
                                         currentTags.remove(tag)
@@ -182,8 +204,7 @@ fun NoteDetailUi(
                         Text("Cancel")
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Button(onClick = {
-                        onTagsChange(tempSelectedTags)
+                    Button(onClick = {                        onTagsChange(tempSelectedTags)
                         showBottomSheet = false
                     }) {
                         Text("Confirm")
@@ -266,12 +287,16 @@ fun NoteDetailUi(
                 maxLines = 1,
                 modifier = Modifier.fillMaxWidth()
             )
-            LazyRow(modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 items(items = tags) { tag ->
-                    TagItem(modifier = Modifier, tag = tag)
-
+                    if (tag == "") {
+                    } else {
+                        TagItem(modifier = Modifier, tag = tag)
+                    }
                 }
 
                 item {
@@ -301,41 +326,51 @@ fun NoteDetailUi(
     }
 }
 
-
 @Composable
-fun TagItem(modifier: Modifier = Modifier, tag: String) {
+fun TagItem(modifier: Modifier, tag: String) {
     FilterChip(
         modifier = modifier,
-        selected = false,
-        onClick = {},
-        label = { Text(tag) }
+        onClick = { /*TODO*/ },
+        label = {
+            Text(text = tag, style = MaterialTheme.typography.labelSmall)
+        },
+        selected = false
     )
 }
 
+
+@Preview(name = "Empty Note", showBackground = true)
 @Composable
-@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
-fun TagItemPreview() {
+private fun NoteDetailUiPreview_Empty() {
     GlyphNotesTheme {
-        TagItem(
-            modifier = Modifier, tag = "teste"
+        NoteDetailUi(
+            title = "",
+            content = "",
+            tags = emptyList(),
+            allTags = listOf("Work", "Personal", "Urgent"),
+            lastEditDate = Date(),
+            onTitleChange = {},
+            onContentChange = {},
+            onTagsChange = {},
+            onBackPress = {}
         )
     }
 }
 
+@Preview(name = "Filled Note", showBackground = true, uiMode = 3)
 @Composable
-@Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
-fun NoteDetailPreview() {
+private fun NoteDetailUiPreview_Filled() {
     GlyphNotesTheme {
         NoteDetailUi(
-            title = "Sample Note",
-            content = "This is the content of the sample note.",
+            title = "Team Meeting Recap",
+            content = "Here are the key takeaways from our meeting today:\n\n- Q3 roadmap is finalized.\n- Budget proposal needs minor adjustments.\n- The team offsite is scheduled for next month.",
+            tags = listOf("Work", "Urgent"),
+            allTags = listOf("Work", "Personal", "Urgent", "Ideas"),
             lastEditDate = Date(),
             onTitleChange = {},
             onContentChange = {},
-            onBackPress = {},
-            tags = listOf("Tag 1", "Tag 2", "Tag 3"),
-            allTags = listOf("Tag 1", "Tag 2", "Tag 3", "Creative", "Work"),
-            onTagsChange = {}
+            onTagsChange = {},
+            onBackPress = {}
         )
     }
 }

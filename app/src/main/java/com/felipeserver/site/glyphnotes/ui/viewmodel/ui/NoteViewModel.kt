@@ -48,7 +48,7 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
         viewModelScope.launch {
             noteDao.getAllNotes().collect { notes ->
                 _allNotes.value = notes
-                _allTags.value = notes.flatMap { it.tags }.distinct().sorted()
+                _allTags.value = notes.flatMap { it.tags }.filter { it.isNotBlank() }.distinct().sorted()
             }
         }
         // Coleta a nota mais recente.
