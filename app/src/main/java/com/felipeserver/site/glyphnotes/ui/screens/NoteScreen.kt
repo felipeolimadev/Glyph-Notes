@@ -1,32 +1,47 @@
 package com.felipeserver.site.glyphnotes.ui.screens
 
 import android.content.res.Configuration
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,7 +58,6 @@ import androidx.navigation.NavController
 import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.data.db.NoteDatabase
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
-import com.felipeserver.site.glyphnotes.ui.theme.dimens
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteDetailEvent
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModel
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModelFactory
@@ -59,6 +73,7 @@ fun NoteDetailScreen(id: Int, navController: NavController) {
     val factory = NoteViewModelFactory(noteDao)
     val notesViewModel: NoteViewModel = viewModel(factory = factory)
     val uiState by notesViewModel.uiState.collectAsState()
+    val allTags by notesViewModel.allTags.collectAsState()
 
     LaunchedEffect(key1 = id) {
         notesViewModel.onEvent(NoteDetailEvent.LoadNote(id))
@@ -67,15 +82,21 @@ fun NoteDetailScreen(id: Int, navController: NavController) {
     NoteDetailUi(
         title = uiState.title,
         content = uiState.content,
+        tags = uiState.tags,
+        allTags = allTags,
         lastEditDate = uiState.lastEditDate,
-        onTitleChange = { newTitle ->
-            notesViewModel.onEvent(NoteDetailEvent.OnTitleChange(newTitle))
+        onTitleChange = {
+            notesViewModel.onEvent(NoteDetailEvent.OnTitleChange(it))
         },
-        onContentChange = { newContent ->
-            notesViewModel.onEvent(NoteDetailEvent.OnContentChange(newContent))
+        onContentChange = {
+            notesViewModel.onEvent(NoteDetailEvent.OnContentChange(it))
+        },
+        onTagsChange = {
+            notesViewModel.onEvent(NoteDetailEvent.OnTagsChange(it))
         },
         onBackPress = {
             notesViewModel.onEvent(NoteDetailEvent.OnBackPressed)
+
             navController.popBackStack()
         }
     )
@@ -88,12 +109,90 @@ fun NoteDetailScreen(id: Int, navController: NavController) {
 fun NoteDetailUi(
     title: String,
     content: String,
+    tags: List<String>,
+    allTags: List<String>,
     lastEditDate: Date,
     onTitleChange: (String) -> Unit,
     onContentChange: (String) -> Unit,
-    onBackPress: () -> Unit
-) {
+    onTagsChange: (List<String>) -> Unit,
+    onBackPress: () -> Unit,
+
+    ) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    val sheetState = rememberModalBottomSheetState()
+    var showBottomSheet by remember { mutableStateOf(false) }
+    var tempSelectedTags by remember(tags) { mutableStateOf(tags) }
+
+    if (showBottomSheet) {
+        LaunchedEffect(tags) {
+            tempSelectedTags = tags
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = { showBottomSheet = false },
+            sheetState = sheetState
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Select Tags", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 16.dp))
+
+                LazyColumn(modifier = Modifier.weight(1f)) {
+                    items(items = allTags) { tag ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { 
+                                    val currentTags = tempSelectedTags.toMutableList()
+                                    if (currentTags.contains(tag)) {
+                                        currentTags.remove(tag)
+                                    } else {
+                                        currentTags.add(tag)
+                                    }
+                                    tempSelectedTags = currentTags
+                                }
+                                .padding(vertical = 8.dp)
+                        ) {
+                            Checkbox(
+                                checked = tag in tempSelectedTags,
+                                onCheckedChange = { isChecked ->
+                                    val currentTags = tempSelectedTags.toMutableList()
+                                    if (isChecked) {
+                                        if (!currentTags.contains(tag)) currentTags.add(tag)
+                                    } else {
+                                        currentTags.remove(tag)
+                                    }
+                                    tempSelectedTags = currentTags
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(tag)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        onClick = { showBottomSheet = false },
+                    ) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(onClick = {
+                        onTagsChange(tempSelectedTags)
+                        showBottomSheet = false
+                    }) {
+                        Text("Confirm")
+                    }
+                }
+            }
+        }
+    }
+
 
     Scaffold(
         modifier = Modifier
@@ -165,7 +264,25 @@ fun NoteDetailUi(
                     disabledIndicatorColor = Color.Transparent,
                 ),
                 maxLines = 1,
+                modifier = Modifier.fillMaxWidth()
             )
+            LazyRow(modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(items = tags) { tag ->
+                    TagItem(modifier = Modifier, tag = tag)
+
+                }
+
+                item {
+                    IconButton(onClick = { showBottomSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Tag"
+                        )
+                    }
+                }
+            }
             TextField(
                 modifier = Modifier.fillMaxSize(),
                 placeholder = { Text(text = "Content") },
@@ -178,30 +295,28 @@ fun NoteDetailUi(
                     disabledIndicatorColor = Color.Transparent,
                 ),
                 value = content,
-                onValueChange = onContentChange)
+                onValueChange = onContentChange
+            )
         }
     }
 }
 
 
 @Composable
-fun TagBar(modifier: Modifier = Modifier, tag: String) {
-    Surface(
+fun TagItem(modifier: Modifier = Modifier, tag: String) {
+    FilterChip(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.primaryContainer
-    ) {
-        Text(
-            modifier = Modifier.padding(MaterialTheme.dimens.paddingSmall), text = tag
-        )
-    }
+        selected = false,
+        onClick = {},
+        label = { Text(tag) }
+    )
 }
 
 @Composable
 @Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
-fun TagBarPreview() {
+fun TagItemPreview() {
     GlyphNotesTheme {
-        TagBar(
+        TagItem(
             modifier = Modifier, tag = "teste"
         )
     }
@@ -217,7 +332,10 @@ fun NoteDetailPreview() {
             lastEditDate = Date(),
             onTitleChange = {},
             onContentChange = {},
-            onBackPress = {}
+            onBackPress = {},
+            tags = listOf("Tag 1", "Tag 2", "Tag 3"),
+            allTags = listOf("Tag 1", "Tag 2", "Tag 3", "Creative", "Work"),
+            onTagsChange = {}
         )
     }
 }
