@@ -23,65 +23,49 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 
-data class DropdownItem(
-    val icon: ImageVector,
-    val title: String
-)
+data class DropdownItem(val icon: ImageVector, val title: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(paddingValues: PaddingValues) {
 
-    val themeList = listOf(
-        DropdownItem(Icons.Default.ChevronRight, "Material You"),
-        DropdownItem(Icons.Default.ChevronRight, "Glyph"),
-
+    val themeList =
+        listOf(
+            DropdownItem(Icons.Default.ChevronRight, "Material You"),
+            DropdownItem(Icons.Default.ChevronRight, "Glyph"),
         )
     var expanded by remember { mutableStateOf(false) }
     var selectedItemDropDown by remember { mutableStateOf(themeList[0]) }
 
-
-    Scaffold(modifier = Modifier.padding(paddingValues), topBar = {
-        TopAppBar(
-            title = { Text("Settings") },
-        )
-    }) { innerPadding ->
+    Scaffold(
+        modifier = Modifier.padding(paddingValues),
+        topBar = { TopAppBar(title = { Text("Settings") }) },
+    ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
             ListItem(
-                headlineContent = {
-                    Text(text = "Theme")
-                },
+                headlineContent = { Text(text = "Theme") },
                 supportingContent = { Text("Pick the default theme") },
-
-                trailingContent = {
-                    DropDownOptions()
-                },
+                trailingContent = { DropDownOptions() },
                 leadingContent = {
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = "Theme Setting"
                     )
-                })
+                },
+            )
         }
     }
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DropDownOptions() {
     val checked by remember { mutableStateOf(false) }
-    Switch(
-        checked = checked,
-        onCheckedChange = {}
-    )
+    Switch(checked = checked, onCheckedChange = {})
 }
-
 
 @Composable
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 fun SettingsScreenPreview() {
-    SettingsScreen(
-        paddingValues = PaddingValues()
-    )
+    SettingsScreen(paddingValues = PaddingValues())
 }

@@ -14,21 +14,25 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.ui.theme.dimens
+import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.getUsername
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ProfileBar(modifier: Modifier = Modifier) {
-
+    val context = LocalContext.current
+    val username = getUsername(context).collectAsState(initial = "")
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -55,7 +59,7 @@ fun ProfileBar(modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "Felipe",
+                text = username.value ?: "",
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Left,
                 color = MaterialTheme.colorScheme.onBackground
