@@ -3,11 +3,9 @@ package com.felipeserver.site.glyphnotes.ui.viewmodel.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
-
 
 
 data class NavigationItem(
@@ -25,7 +23,7 @@ data class NavigationItem(
             NavigationItem(
                 "Favorite",
                 Icons.Default.Favorite,
-                Screen.Favorite.rout
+                Screen.Favorites.rout
             ),
             NavigationItem(
                 "Calendar",

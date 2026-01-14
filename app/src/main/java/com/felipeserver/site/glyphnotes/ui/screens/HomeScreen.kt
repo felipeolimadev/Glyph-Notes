@@ -13,17 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.BottomAppBarDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FabPosition
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,16 +29,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.compose.rememberNavController
 import com.felipeserver.site.glyphnotes.data.db.Note
 import com.felipeserver.site.glyphnotes.data.db.NoteDatabase
-import com.felipeserver.site.glyphnotes.ui.components.BottomNavigationBar
 import com.felipeserver.site.glyphnotes.ui.components.NoteItem
 import com.felipeserver.site.glyphnotes.ui.components.ProfileBar
 import com.felipeserver.site.glyphnotes.ui.components.SearchBarField
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
 import com.felipeserver.site.glyphnotes.ui.theme.dimens
-import com.felipeserver.site.glyphnotes.ui.viewmodel.navigation.Screen
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteDetailEvent
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModel
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModelFactory
@@ -60,8 +47,8 @@ import java.util.Locale
 
 @Composable
 fun HomeScreen(
+    modifier: Modifier = Modifier,
     onNoteClick: (Int) -> Unit = {},
-    onFabClick: () -> Unit = {},
     onNoteDismissed: (Note) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -74,43 +61,24 @@ fun HomeScreen(
 
     var searchQuery by remember { mutableStateOf("") }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onFabClick,
-                containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
-                elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add")
-            }
-        },
-        floatingActionButtonPosition = FabPosition.End,
-        bottomBar = {
-            BottomNavigationBar(rememberNavController())
-        }
-    ) { innerPadding ->
-        HomeContent(
-            notes = allNotes,
-            onNoteClick = onNoteClick,
-            paddingValues = innerPadding,
-            onNoteDismissed = { note -> notesViewModel.onEvent(NoteDetailEvent.DeleteNote(note)) },
-            searchQuery = searchQuery,
-            onQueryChange = { searchQuery = it }
-        )
-    }
+    HomeContent(
+        modifier = modifier,
+        notes = allNotes,
+        onNoteClick = onNoteClick,
+        onNoteDismissed = { note -> notesViewModel.onEvent(NoteDetailEvent.DeleteNote(note)) },
+        searchQuery = searchQuery,
+        onQueryChange = { searchQuery = it }
+    )
 }
 
 @OptIn(
-    ExperimentalMaterial3Api::class,
-    ExperimentalMaterial3ExpressiveApi::class,
     ExperimentalFoundationApi::class
 )
 @Composable
 fun HomeContent(
+    modifier: Modifier = Modifier,
     notes: List<Note>,
     onNoteClick: (Int) -> Unit,
-    paddingValues: PaddingValues,
     onNoteDismissed: (Note) -> Unit,
     searchQuery: String,
     onQueryChange: (String) -> Unit
@@ -153,10 +121,9 @@ fun HomeContent(
 
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
-            .padding(paddingValues)
-            .background(Color.Transparent),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.TopCenter
     ) {
         Column(
@@ -241,26 +208,27 @@ private fun getNoteGroup(date: Date): String {
 }
 
 
+
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun HomeScreenPreview() {
     GlyphNotesTheme {
+        val calendar = Calendar.getInstance()
+        val today = calendar.time
+        calendar.add(Calendar.DAY_OF_YEAR, -1)
+        val yesterday = calendar.time
+        calendar.add(Calendar.MONTH, -1)
+        val lastMonth = calendar.time
+
         val mockNotes = listOf(
-            Note(
-                id = 1,
-                title = "Preview Note 1",
-                content = "Esta é uma nota de exemplo para o preview.",
-                tags = emptyList(),
-                category = "Preview",
-                isPinned = true,
-                creationDate = Date(),
-                lastEditDate = Date()
-            )
+            Note(id = 1, title = "Ideias para o App", content = "Explorar novas features de IA para o editor de notas.", tags = emptyList(), category = "Trabalho", isPinned = false, creationDate = today, lastEditDate = today),
+            Note(id = 2, title = "Lista de Compras", content = "Leite, pão, ovos e café.", tags = emptyList(), category = "Pessoal", isPinned = false, creationDate = today, lastEditDate = today),
+            Note(id = 3, title = "Resumo da Reunião", content = "Enviar o resumo sobre o alinhamento do projeto.", tags = emptyList(), category = "Trabalho", isPinned = false, creationDate = yesterday, lastEditDate = yesterday),
+            Note(id = 4, title = "Filmes para Assistir", content = "Duna: Parte 2 e O Problema dos 3 Corpos.", tags = emptyList(), category = "Lazer", isPinned = false, creationDate = lastMonth, lastEditDate = lastMonth)
         )
         HomeContent(
             notes = mockNotes,
             onNoteClick = {},
-            paddingValues = PaddingValues(),
             onNoteDismissed = {},
             searchQuery = "",
             onQueryChange = {}

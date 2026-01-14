@@ -18,7 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,10 +26,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ModalBottomSheetProperties
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTopAppBarState
@@ -44,8 +43,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -64,16 +61,12 @@ import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModelFactory
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.dateFormatterRelative
 import java.util.Date
 
-/**
- * Tela "inteligente" que funciona como um contêiner para a visualização de detalhes da nota.
- * É responsável por obter dados do [NoteViewModel], coletar o estado da UI e lidar com a navegação.
- *
- * @param id O ID da nota a ser exibida. Se o ID for -1, a tela abre em modo de criação para uma nova nota.
- * @param navController O [NavController] usado para navegar de volta da tela.
- */
 @Composable
-fun NoteDetailScreen(id: Int, navController: NavController) {
-    // Instancia o ViewModel com a Factory
+fun NoteDetailScreen(
+    modifier: Modifier = Modifier,
+    id: Int,
+    navController: NavController
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val noteDao = NoteDatabase.getDatabase(context, scope).noteDao()
@@ -85,8 +78,8 @@ fun NoteDetailScreen(id: Int, navController: NavController) {
     LaunchedEffect(key1 = id) {
         notesViewModel.onEvent(NoteDetailEvent.LoadNote(id))
     }
-
     NoteDetailUi(
+        modifier = modifier,
         title = uiState.title,
         content = uiState.content,
         tags = uiState.tags,
@@ -109,23 +102,10 @@ fun NoteDetailScreen(id: Int, navController: NavController) {
     )
 }
 
-/**
- * Composable "burro" e sem estado, responsável por renderizar a interface do usuário da tela de detalhes da nota.
- * Ele exibe os dados da nota e delega todos os eventos de interação do usuário para o chamador por meio de funções lambda.
- *
- * @param title O título atual da nota a ser exibido no campo de texto do título.
- * @param content O conteúdo principal da nota a ser exibido no campo de texto do conteúdo.
- * @param tags A lista de tags atualmente associadas à nota.
- * @param allTags Uma lista completa de todas as tags disponíveis no aplicativo, usada para o ModalBottomSheet de seleção de tags.
- * @param lastEditDate A data da última edição da nota, exibida na barra de aplicativos superior.
- * @param onTitleChange Um retorno de chamada invocado quando o usuário digita no campo de texto do título.
- * @param onContentChange Um retorno de chamada invocado quando o usuário digita no campo de texto do conteúdo.
- * @param onTagsChange Um retorno de chamada invocado quando o usuário confirma sua seleção de tags no ModalBottomSheet.
- * @param onBackPress Um retorno de chamada invocado quando o usuário toca no ícone de navegação para voltar.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteDetailUi(
+    modifier: Modifier = Modifier,
     title: String,
     content: String,
     tags: List<String>,
@@ -149,7 +129,10 @@ fun NoteDetailUi(
 
         ModalBottomSheet(
             onDismissRequest = { showBottomSheet = false },
-            sheetState = sheetState
+            sheetState = sheetState,
+            properties = ModalBottomSheetProperties(
+
+            )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -185,6 +168,7 @@ fun NoteDetailUi(
                                         currentTags.remove(tag)
                                     }
                                     tempSelectedTags = currentTags
+                                    onTagsChange(tempSelectedTags)
                                 }
                             )
                             Spacer(modifier = Modifier.width(16.dp))
@@ -195,32 +179,14 @@ fun NoteDetailUi(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Button(
-                        onClick = { showBottomSheet = false },
-                    ) {
-                        Text("Cancel")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(onClick = {                        onTagsChange(tempSelectedTags)
-                        showBottomSheet = false
-                    }) {
-                        Text("Confirm")
-                    }
-                }
+
             }
         }
     }
 
 
-    Scaffold(
-        modifier = Modifier
-            .nestedScroll(scrollBehavior.nestedScrollConnection)
-            .padding(top = 0.dp),
-        topBar = {
+    Surface(modifier = modifier.fillMaxSize()) {
+        Column {
             CenterAlignedTopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -265,25 +231,12 @@ fun NoteDetailUi(
                 },
                 scrollBehavior = scrollBehavior,
             )
-        },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            TextField(
+            OutlinedTextField(
                 value = title,
                 onValueChange = onTitleChange,
-                placeholder = { Text(text = "Title") },
+                label = { Text(text = "Title") },
                 textStyle = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight(500)
-                ),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
                 ),
                 maxLines = 1,
                 modifier = Modifier.fillMaxWidth()
@@ -309,17 +262,9 @@ fun NoteDetailUi(
                     }
                 }
             }
-            TextField(
+            OutlinedTextField(
                 modifier = Modifier.fillMaxSize(),
-                placeholder = { Text(text = "Content") },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                ),
+                label = { Text(text = "Content") },
                 value = content,
                 onValueChange = onContentChange
             )
@@ -364,7 +309,11 @@ private fun NoteDetailUiPreview_Filled() {
     GlyphNotesTheme {
         NoteDetailUi(
             title = "Team Meeting Recap",
-            content = "Here are the key takeaways from our meeting today:\n\n- Q3 roadmap is finalized.\n- Budget proposal needs minor adjustments.\n- The team offsite is scheduled for next month.",
+            content = """Here are the key takeaways from our meeting today:
+
+- Q3 roadmap is finalized.
+- Budget proposal needs minor adjustments.
+- The team offsite is scheduled for next month.""",
             tags = listOf("Work", "Urgent"),
             allTags = listOf("Work", "Personal", "Urgent", "Ideas"),
             lastEditDate = Date(),
