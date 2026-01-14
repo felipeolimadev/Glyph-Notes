@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,9 +26,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTopAppBarState
@@ -126,7 +126,8 @@ fun NoteDetailUi(
         LaunchedEffect(tags) {
             tempSelectedTags = tags
         }
-
+// TODO: Adicionar botão para incluir novas tags
+// TODO: Adicionar botão para remover tags ao lado de cada tag
         ModalBottomSheet(
             onDismissRequest = { showBottomSheet = false },
             sheetState = sheetState,
@@ -185,8 +186,9 @@ fun NoteDetailUi(
     }
 
 
-    Surface(modifier = modifier.fillMaxSize()) {
-        Column {
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
             CenterAlignedTopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -222,16 +224,14 @@ fun NoteDetailUi(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* do something */ }) {
-                        Icon(
-                            imageVector = Icons.Filled.Menu,
-                            contentDescription = "Localized description"
-                        )
-                    }
+
                 },
                 scrollBehavior = scrollBehavior,
             )
-            OutlinedTextField(
+        }
+    ) { innerPadding ->
+        Column(modifier = Modifier.padding(innerPadding)) {
+            TextField(
                 value = title,
                 onValueChange = onTitleChange,
                 label = { Text(text = "Title") },
@@ -239,16 +239,42 @@ fun NoteDetailUi(
                     fontWeight = FontWeight(500)
                 ),
                 maxLines = 1,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.background,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.background,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.background,
+                    focusedLabelColor = MaterialTheme.colorScheme.background,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.background,
+                )
             )
+
+            TextField(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                label = { Text(text = "Content") },
+                value = content,
+                onValueChange = onContentChange,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.background,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.background,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.background,
+                    focusedLabelColor = MaterialTheme.colorScheme.background,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.background,
+                )
+            )
+
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(items = tags) { tag ->
-                    if (tag == "") {
-                    } else {
+                    if (tag != "") {
                         TagItem(modifier = Modifier, tag = tag)
                     }
                 }
@@ -262,12 +288,6 @@ fun NoteDetailUi(
                     }
                 }
             }
-            OutlinedTextField(
-                modifier = Modifier.fillMaxSize(),
-                label = { Text(text = "Content") },
-                value = content,
-                onValueChange = onContentChange
-            )
         }
     }
 }

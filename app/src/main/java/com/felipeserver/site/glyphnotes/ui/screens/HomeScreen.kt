@@ -132,6 +132,7 @@ fun HomeContent(
         ) {
             ProfileBar()
             SearchBarField(
+                modifier = modifier,
                 query = searchQuery,
                 onQueryChange = onQueryChange
             )

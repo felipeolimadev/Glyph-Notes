@@ -172,7 +172,6 @@ class MainActivity : ComponentActivity() {
                             ) { backStackEntry ->
                                 val noteId = backStackEntry.arguments?.getInt("noteId") ?: -1
                                 NoteDetailScreen(
-                                    modifier = Modifier.padding(innerPadding),
                                     id = noteId,
                                     navController = navController
                                 )
