@@ -102,7 +102,7 @@ fun HomeContent(
     val groupedNormalNotes = remember(normalNotes) {
         val monthYearFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
 
-        normalNotes.groupBy { getNoteGroup(it.lastEditDate) }
+        normalNotes.groupBy { getNoteGroup(it.creationDate) }
             .toSortedMap(compareByDescending { header ->
                 when (header) {
                     "Hoje" -> Calendar.getInstance().time
@@ -166,8 +166,8 @@ fun HomeContent(
                         items = notesInGroup,
                         key = { note -> "normal-${note.id}" },
                     ) { note ->
-                        val formattedDate = remember(note.lastEditDate) {
-                            dateFormatterRelative(note.lastEditDate.time)
+                        val formattedDate = remember(note.creationDate) {
+                            dateFormatterRelative(note.creationDate.time)
                         }
                         Box(modifier = Modifier.padding(horizontal = MaterialTheme.dimens.paddingLarge)) {
                             NoteItem(

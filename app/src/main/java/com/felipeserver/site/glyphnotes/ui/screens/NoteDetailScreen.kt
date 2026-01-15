@@ -1,6 +1,8 @@
 package com.felipeserver.site.glyphnotes.ui.screens
 
 import android.content.res.Configuration
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,13 +12,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -43,6 +48,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +66,7 @@ import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteDetailEvent
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModel
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModelFactory
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.dateFormatterRelative
+import kotlinx.coroutines.launch
 import java.util.Date
 
 @Composable
@@ -85,6 +93,7 @@ fun NoteDetailScreen(
         tags = uiState.tags,
         allTags = allTags,
         lastEditDate = uiState.lastEditDate,
+        isPinned = uiState.isPinned,
         onTitleChange = {
             notesViewModel.onEvent(NoteDetailEvent.OnTitleChange(it))
         },
@@ -93,6 +102,12 @@ fun NoteDetailScreen(
         },
         onTagsChange = {
             notesViewModel.onEvent(NoteDetailEvent.OnTagsChange(it))
+        },
+        onDeleteTag = { 
+            notesViewModel.onEvent(NoteDetailEvent.OnDeleteTag(it))
+        },
+        onTogglePin = {
+            notesViewModel.onEvent(NoteDetailEvent.TogglePin)
         },
         onBackPress = {
             notesViewModel.onEvent(NoteDetailEvent.OnBackPressed)
@@ -111,16 +126,23 @@ fun NoteDetailUi(
     tags: List<String>,
     allTags: List<String>,
     lastEditDate: Date,
+    isPinned: Boolean,
     onTitleChange: (String) -> Unit,
     onContentChange: (String) -> Unit,
     onTagsChange: (List<String>) -> Unit,
+    onDeleteTag: (String) -> Unit,
+    onTogglePin: () -> Unit,
     onBackPress: () -> Unit,
-
-    ) {
+) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
     var tempSelectedTags by remember(tags) { mutableStateOf(tags) }
+
+    var valueSearchMBS by remember { mutableStateOf("") }
+
+    val scope = rememberCoroutineScope()
+
 
     if (showBottomSheet) {
         LaunchedEffect(tags) {
@@ -143,7 +165,26 @@ fun NoteDetailUi(
                 )
 
                 LazyColumn(modifier = Modifier.weight(1f)) {
-                    items(items = allTags) { tag ->
+                    item() {
+                        TextField(
+
+                            value = valueSearchMBS,
+                            onValueChange = { newValue ->
+                                valueSearchMBS = newValue
+                                scope.launch {
+                                    sheetState.expand()
+                                }
+                            },
+                            label = { Text("Search tags...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight(500)
+                            ),
+                            maxLines = 1,
+
+                        )
+                    }
+                    items(items = allTags.filter { it.contains(valueSearchMBS, ignoreCase = true) }) { tag ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -156,6 +197,7 @@ fun NoteDetailUi(
                                         currentTags.add(tag)
                                     }
                                     tempSelectedTags = currentTags
+                                    onTagsChange(tempSelectedTags)
                                 }
                                 .padding(vertical = 8.dp)
                         ) {
@@ -172,8 +214,18 @@ fun NoteDetailUi(
                                     onTagsChange(tempSelectedTags)
                                 }
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(tag)
+                            Text(
+                                text = tag,
+                                modifier = Modifier
+                                    .padding(start = 16.dp)
+                                    .weight(1f)
+                            )
+                            IconButton(onClick = { onDeleteTag(tag) }) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Delete Tag"
+                                )
+                            }
                         }
                     }
                 }
@@ -224,7 +276,17 @@ fun NoteDetailUi(
                     }
                 },
                 actions = {
-
+                    val iconColor by animateColorAsState(
+                        targetValue = if (isPinned) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                        label = "Pin color animation"
+                    )
+                    IconButton(onClick = onTogglePin) {
+                        Icon(
+                            imageVector = if (isPinned) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = "Pin note",
+                            tint = iconColor
+                        )
+                    }
                 },
                 scrollBehavior = scrollBehavior,
             )
@@ -251,19 +313,28 @@ fun NoteDetailUi(
             )
 
             TextField(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                label = { Text(text = "Content") },
                 value = content,
                 onValueChange = onContentChange,
+                placeholder = { Text("Content") },
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight(400),
+                    color = MaterialTheme.colorScheme.onSurface
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surface),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.background,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
-                    focusedIndicatorColor = MaterialTheme.colorScheme.background,
-                    unfocusedIndicatorColor = MaterialTheme.colorScheme.background,
-                    focusedLabelColor = MaterialTheme.colorScheme.background,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.background,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedLabelColor = Color.Transparent,
+                    unfocusedLabelColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    errorContainerColor = Color.Transparent
                 )
             )
 
@@ -273,12 +344,6 @@ fun NoteDetailUi(
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(items = tags) { tag ->
-                    if (tag != "") {
-                        TagItem(modifier = Modifier, tag = tag)
-                    }
-                }
-
                 item {
                     IconButton(onClick = { showBottomSheet = true }) {
                         Icon(
@@ -287,6 +352,13 @@ fun NoteDetailUi(
                         )
                     }
                 }
+                items(items = tags) { tag ->
+                    if (tag != "") {
+                        TagItem(modifier = Modifier, tag = tag)
+                    }
+                }
+
+
             }
         }
     }
@@ -315,9 +387,12 @@ private fun NoteDetailUiPreview_Empty() {
             tags = emptyList(),
             allTags = listOf("Work", "Personal", "Urgent"),
             lastEditDate = Date(),
+            isPinned = false,
             onTitleChange = {},
             onContentChange = {},
             onTagsChange = {},
+            onDeleteTag = {},
+            onTogglePin = {},
             onBackPress = {}
         )
     }
@@ -333,13 +408,16 @@ private fun NoteDetailUiPreview_Filled() {
 
 - Q3 roadmap is finalized.
 - Budget proposal needs minor adjustments.
-- The team offsite is scheduled for next month.""",
-            tags = listOf("Work", "Urgent"),
-            allTags = listOf("Work", "Personal", "Urgent", "Ideas"),
+- The team offsite is sche""",
+            tags = listOf("Work", "Meetings", "Q3"),
+            allTags = listOf("Work", "Meetings", "Q3", "Personal", "Urgent"),
             lastEditDate = Date(),
+            isPinned = true,
             onTitleChange = {},
             onContentChange = {},
             onTagsChange = {},
+            onDeleteTag = {},
+            onTogglePin = {},
             onBackPress = {}
         )
     }

@@ -53,6 +53,7 @@ fun NoteItem(
                     Text(
                         text = category,
                         style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -75,12 +76,17 @@ fun NoteItem(
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = maxLines,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(
+                modifier = Modifier.padding(MaterialTheme.dimens.paddingLarge)
             )
             Text(
                 text = date,
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Normal
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Normal,
+                modifier = Modifier.align(Alignment.End)
             )
         }
     }
