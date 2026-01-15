@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -86,10 +87,10 @@ fun SplashScreen(navController: NavController, usernameState: String?) {
                 Icon(
                     modifier = Modifier.size(500.dp),
                     painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    contentDescription = "Splash Screen"
+                    contentDescription = stringResource(R.string.splash_screen_desc)
                 )
                 Text(
-                    text = "Glyph Notes",
+                    text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.displayLargeEmphasized
                 )
             }

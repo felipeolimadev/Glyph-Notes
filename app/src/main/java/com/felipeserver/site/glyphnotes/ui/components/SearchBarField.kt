@@ -15,6 +15,8 @@ import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.ui.theme.dimens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,15 +41,15 @@ fun SearchBarField(
                     expanded = false,
                     onExpandedChange = { },
                     placeholder = {
-                        Text("Search notes...")
+                        Text(stringResource(R.string.search_notes))
                     },
                     leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
+                        Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_desc))
                     },
                     trailingIcon = {
                         if (query.isNotEmpty()) {
                             IconButton(onClick = { onQueryChange("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear search")
+                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_search_desc))
                             }
                         }
                     }

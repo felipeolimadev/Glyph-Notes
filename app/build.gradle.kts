@@ -66,7 +66,11 @@ dependencies {
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("androidx.glance:glance-material3:1.1.1")
     implementation("androidx.datastore:datastore-preferences:1.2.0")
-    kapt("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0")
+    implementation ("com.github.SimformSolutionsPvtLtd:SSJetpackComposeSwipeableView:1.0.1")
+    implementation("com.mohamedrejeb.richeditor:richeditor-compose:1.0.0-rc13")
+
+
+kapt("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0")
 
     kapt(libs.androidx.room.compiler)
     testImplementation(libs.junit)

@@ -19,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.res.stringResource
+import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
 import com.felipeserver.site.glyphnotes.ui.theme.dimens
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.dateFormatterRelative
@@ -45,7 +47,7 @@ fun NoteItem(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Article,
-                        contentDescription = "Note",
+                        contentDescription = stringResource(R.string.note_desc),
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingSmall))

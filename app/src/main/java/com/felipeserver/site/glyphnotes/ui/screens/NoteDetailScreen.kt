@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -103,7 +105,7 @@ fun NoteDetailScreen(
         onTagsChange = {
             notesViewModel.onEvent(NoteDetailEvent.OnTagsChange(it))
         },
-        onDeleteTag = { 
+        onDeleteTag = {
             notesViewModel.onEvent(NoteDetailEvent.OnDeleteTag(it))
         },
         onTogglePin = {
@@ -112,6 +114,10 @@ fun NoteDetailScreen(
         onBackPress = {
             notesViewModel.onEvent(NoteDetailEvent.OnBackPressed)
 
+            navController.popBackStack()
+        },
+        onDeleteNote = {
+            notesViewModel.onEvent(NoteDetailEvent.DeleteNote(id))
             navController.popBackStack()
         }
     )
@@ -127,6 +133,7 @@ fun NoteDetailUi(
     allTags: List<String>,
     lastEditDate: Date,
     isPinned: Boolean,
+    onDeleteNote: () -> Unit,
     onTitleChange: (String) -> Unit,
     onContentChange: (String) -> Unit,
     onTagsChange: (List<String>) -> Unit,
@@ -159,7 +166,7 @@ fun NoteDetailUi(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    "Select Tags",
+                    stringResource(R.string.select_tags),
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
@@ -175,16 +182,21 @@ fun NoteDetailUi(
                                     sheetState.expand()
                                 }
                             },
-                            label = { Text("Search tags...") },
+                            label = { Text(stringResource(R.string.search_tags)) },
                             modifier = Modifier.fillMaxWidth(),
                             textStyle = MaterialTheme.typography.headlineSmall.copy(
                                 fontWeight = FontWeight(500)
                             ),
                             maxLines = 1,
 
-                        )
+                            )
                     }
-                    items(items = allTags.filter { it.contains(valueSearchMBS, ignoreCase = true) }) { tag ->
+                    items(items = allTags.filter {
+                        it.contains(
+                            valueSearchMBS,
+                            ignoreCase = true
+                        )
+                    }) { tag ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -223,7 +235,7 @@ fun NoteDetailUi(
                             IconButton(onClick = { onDeleteTag(tag) }) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete Tag"
+                                    contentDescription = stringResource(R.string.delete_tag_desc)
                                 )
                             }
                         }
@@ -271,20 +283,45 @@ fun NoteDetailUi(
                     IconButton(onClick = onBackPress) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Localized description"
+                            contentDescription = stringResource(R.string.localized_description)
                         )
                     }
                 },
                 actions = {
                     val iconColor by animateColorAsState(
                         targetValue = if (isPinned) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
-                        label = "Pin color animation"
+                        label = stringResource(R.string.pin_color_animation_label)
                     )
                     IconButton(onClick = onTogglePin) {
                         Icon(
                             imageVector = if (isPinned) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                            contentDescription = "Pin note",
+                            contentDescription = stringResource(R.string.pin_note_desc),
                             tint = iconColor
+                        )
+                    }
+                    var showDeleteDialog by remember { mutableStateOf(false) }
+                    if (showDeleteDialog == true) {
+                        AlertDialog(
+                            title = { Text(stringResource(R.string.delete_note_title)) },
+                            text = { Text(stringResource(R.string.delete_note_confirmation)) },
+                            icon = {
+                                Icon(Icons.Default.Delete, stringResource(R.string.delete_icon_desc))
+                            },
+                            onDismissRequest = { showDeleteDialog = false },
+                            confirmButton = {
+                                Button(onClick = {
+                                    onDeleteNote()
+                                }) {
+                                    Text(stringResource(R.string.delete_action))
+                                }
+                            })
+                    }
+                    IconButton(onClick = {
+                        showDeleteDialog = true
+                    }) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = stringResource(R.string.delete_note_desc)
                         )
                     }
                 },
@@ -296,7 +333,7 @@ fun NoteDetailUi(
             TextField(
                 value = title,
                 onValueChange = onTitleChange,
-                label = { Text(text = "Title") },
+                label = { Text(text = stringResource(R.string.title_label)) },
                 textStyle = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight(500)
                 ),
@@ -315,7 +352,7 @@ fun NoteDetailUi(
             TextField(
                 value = content,
                 onValueChange = onContentChange,
-                placeholder = { Text("Content") },
+                placeholder = { Text(stringResource(R.string.content_placeholder)) },
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     fontWeight = FontWeight(400),
                     color = MaterialTheme.colorScheme.onSurface
@@ -348,7 +385,7 @@ fun NoteDetailUi(
                     IconButton(onClick = { showBottomSheet = true }) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = "Add Tag"
+                            contentDescription = stringResource(R.string.add_tag_desc)
                         )
                     }
                 }
@@ -377,28 +414,11 @@ fun TagItem(modifier: Modifier, tag: String) {
 }
 
 
-@Preview(name = "Empty Note", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Composable
-private fun NoteDetailUiPreview_Empty() {
-    GlyphNotesTheme {
-        NoteDetailUi(
-            title = "",
-            content = "",
-            tags = emptyList(),
-            allTags = listOf("Work", "Personal", "Urgent"),
-            lastEditDate = Date(),
-            isPinned = false,
-            onTitleChange = {},
-            onContentChange = {},
-            onTagsChange = {},
-            onDeleteTag = {},
-            onTogglePin = {},
-            onBackPress = {}
-        )
-    }
-}
-
-@Preview(name = "Filled Note", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Filled Note",
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 private fun NoteDetailUiPreview_Filled() {
     GlyphNotesTheme {
@@ -418,7 +438,8 @@ private fun NoteDetailUiPreview_Filled() {
             onTagsChange = {},
             onDeleteTag = {},
             onTogglePin = {},
-            onBackPress = {}
+            onBackPress = {},
+            onDeleteNote = {}
         )
     }
 }

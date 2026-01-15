@@ -25,8 +25,10 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
 import com.felipeserver.site.glyphnotes.ui.theme.dimens
 import com.felipeserver.site.glyphnotes.ui.viewmodel.navigation.Screen
@@ -50,12 +52,12 @@ fun OnBoardingUserName(navController: NavController) {
             Column() {
                 Spacer(modifier = Modifier.size(15.dp))
                 Text(
-                    "Hello",
+                    stringResource(R.string.onboarding_hello),
                     style = MaterialTheme.typography.displayLargeEmphasized,
                     textAlign = TextAlign.Start
                 )
                 Text(
-                    "What should we call you?",
+                    stringResource(R.string.onboarding_what_should_we_call_you),
                     style = MaterialTheme.typography.headlineSmall,
                     fontStyle = FontStyle.Italic,
                     fontWeight = FontWeight.Light
@@ -69,8 +71,8 @@ fun OnBoardingUserName(navController: NavController) {
                     unfocusedContainerColor = MaterialTheme.colorScheme.background,
                     focusedContainerColor = MaterialTheme.colorScheme.background,
                 ),
-                placeholder = { Text("Enter your name") },
-                label = {Text("Your identity in the app")}
+                placeholder = { Text(stringResource(R.string.onboarding_enter_your_name)) },
+                label = {Text(stringResource(R.string.onboarding_your_identity_in_the_app))}
             )
             Button(
                 modifier = Modifier
@@ -86,7 +88,7 @@ fun OnBoardingUserName(navController: NavController) {
                     }
                 }
             ) {
-                Text("Continue")
+                Text(stringResource(R.string.onboarding_continue))
             }
 
         }

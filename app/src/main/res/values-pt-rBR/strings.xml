@@ -1,5 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App General -->
     <string name="app_name">Glyph Notes</string>
     <string name="last_edited">Última edição</string>
+
+    <!-- Widget -->
+    <string name="appwidget_text">EXEMPLO</string>
+    <string name="add_widget">Adicionar widget</string>
+    <string name="app_widget_description">Esta é uma descrição do app widget</string>
+    <string name="add_note">Adicionar Nota</string>
+
+    <!-- SplashScreen -->
+    <string name="splash_screen_desc">Tela de Abertura</string>
+
+    <!-- OnBoarding -->
+    <string name="onboarding_hello">Olá</string>
+    <string name="onboarding_what_should_we_call_you">Como devemos te chamar?</string>
+    <string name="onboarding_enter_your_name">Digite seu nome</string>
+    <string name="onboarding_your_identity_in_the_app">Sua identidade no app</string>
+    <string name="onboarding_continue">Continuar</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Configurações</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_pick_default_theme">Escolha o tema padrão</string>
+    <string name="settings_theme_setting_desc">Configuração de Tema</string>
+
+    <!-- ProfileBar -->
+    <string name="profile_picture_desc">Foto de Perfil</string>
+    <string name="welcome_back">Bem-vindo de volta, </string>
+
+    <!-- SearchBar -->
+    <string name="search_notes">Buscar notas…</string>
+    <string name="search_desc">Buscar</string>
+    <string name="clear_search_desc">Limpar busca</string>
+
+    <!-- NoteDetailScreen -->
+    <string name="select_tags">Selecionar Tags</string>
+    <string name="search_tags">Buscar tags…</string>
+    <string name="delete_tag_desc">Excluir Tag</string>
+    <string name="localized_description">Descrição localizada</string>
+    <string name="pin_color_animation_label">Animação de cor do pin</string>
+    <string name="pin_note_desc">Fixar nota</string>
+    <string name="delete_note_title">Excluir Nota</string>
+    <string name="delete_note_confirmation">Tem certeza que deseja excluir esta nota?</string>
+    <string name="delete_icon_desc">Ícone de exclusão</string>
+    <string name="delete_action">Excluir</string>
+    <string name="delete_note_desc">Excluir Nota</string>
+    <string name="title_label">Título</string>
+    <string name="content_placeholder">Conteúdo</string>
+    <string name="add_tag_desc">Adicionar Tag</string>
+
+    <!-- HomeScreen -->
+    <string name="today">Hoje</string>
+    <string name="yesterday">Ontem</string>
+    <string name="edit_right_clicked">Editar clicado</string>
+    <string name="note_dismissed">Nota removida</string>
+
+    <!-- CalendarScreen -->
+    <string name="calendar_screen">Tela de Calendário</string>
+
+    <!-- NoteItem -->
+    <string name="note_desc">Nota</string>
+
+    <!-- PinnedCard -->
+    <string name="heart_desc">Coração</string>
 </resources>

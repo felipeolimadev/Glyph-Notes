@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -48,6 +49,7 @@ import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
 import com.felipeserver.site.glyphnotes.ui.viewmodel.navigation.Screen
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.getUsername
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.Locale.getDefault
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -94,7 +96,7 @@ class MainActivity : ComponentActivity() {
                                     containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
                                     elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
                                 ) {
-                                    Icon(Icons.Filled.Add, contentDescription = "Add Note")
+                                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_note))
                                 }
                             }
                         },
@@ -109,7 +111,13 @@ class MainActivity : ComponentActivity() {
                                     items.forEach { (screen, icon) ->
                                         NavigationBarItem(
                                             icon = { Icon(icon, contentDescription = null) },
-                                            label = { Text(screen.rout.substringBefore("_")) },
+                                            label = { Text(
+                                                screen.rout.substringBefore("_")
+                                                    .replaceFirstChar {
+                                                        if (it.isLowerCase()) it.titlecase(
+                                                            getDefault()
+                                                        ) else it.toString()
+                                                    }) },
                                             selected = currentDestination?.hierarchy?.any { it.route == screen.rout } == true,
                                             onClick = {
                                                 navController.navigate(screen.rout) {

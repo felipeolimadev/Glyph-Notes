@@ -49,7 +49,7 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
             is NoteDetailEvent.OnTagsChange -> updateTags(event.tags)
             is NoteDetailEvent.SaveNote -> saveNote()
             is NoteDetailEvent.TogglePin -> togglePin()
-            is NoteDetailEvent.DeleteNote -> deleteNote(event.note)
+            is NoteDetailEvent.DeleteNote -> deleteNote(event.id)
             is NoteDetailEvent.OnDeleteTag -> deleteTag(event.tag)
             is NoteDetailEvent.OnBackPressed -> {
                 saveJob?.cancel()
@@ -121,9 +121,9 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
         }
     }
 
-    private fun deleteNote(note: Note){
+    private fun deleteNote(id: Int){
         viewModelScope.launch {
-            noteDao.deleteNote(note)
+            noteDao.deleteNoteById(id)
         }
     }
     
@@ -205,5 +205,5 @@ sealed interface NoteDetailEvent {
     object SaveNote : NoteDetailEvent
     object TogglePin : NoteDetailEvent
     object OnBackPressed : NoteDetailEvent
-    data class DeleteNote(val note: Note) : NoteDetailEvent
+    data class DeleteNote(val id: Int) : NoteDetailEvent
 }

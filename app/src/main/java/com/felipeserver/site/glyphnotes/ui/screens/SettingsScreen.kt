@@ -19,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.res.stringResource
+import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
 
 data class DropdownItem(val icon: ImageVector, val title: String)
@@ -29,15 +31,15 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column {
-            TopAppBar(title = { Text("Settings") })
+            TopAppBar(title = { Text(stringResource(R.string.settings_title)) })
             ListItem(
-                headlineContent = { Text(text = "Theme") },
-                supportingContent = { Text("Pick the default theme") },
+                headlineContent = { Text(text = stringResource(R.string.settings_theme)) },
+                supportingContent = { Text(stringResource(R.string.settings_pick_default_theme)) },
                 trailingContent = { DropDownOptions() },
                 leadingContent = {
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "Theme Setting"
+                        contentDescription = stringResource(R.string.settings_theme_setting_desc)
                     )
                 },
             )

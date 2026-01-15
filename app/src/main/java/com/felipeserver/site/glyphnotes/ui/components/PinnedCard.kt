@@ -27,8 +27,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.ui.theme.dimens
 
 @Composable
@@ -78,7 +80,7 @@ fun PinnedCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Favorite,
-                        contentDescription = "Heart",
+                        contentDescription = stringResource(R.string.heart_desc),
                         tint = initialColor
 
                     )

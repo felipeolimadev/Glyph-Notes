@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -42,7 +43,7 @@ fun ProfileBar(modifier: Modifier = Modifier) {
     ) {
         Image(
             painter = painterResource(id = R.drawable.dog),
-            contentDescription = "Profile Picture",
+            contentDescription = stringResource(R.string.profile_picture_desc),
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(50.dp)
@@ -52,7 +53,7 @@ fun ProfileBar(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium))
         Column {
             Text(
-                text = "Welcome back, ",
+                text = stringResource(R.string.welcome_back),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Left,

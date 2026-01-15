@@ -20,6 +20,8 @@ import androidx.glance.preview.ExperimentalGlancePreviewApi
 import androidx.glance.preview.Preview
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.glance.LocalContext
+import com.felipeserver.site.glyphnotes.R
 
 
 class NewNoteWidgetReceiver : GlanceAppWidgetReceiver(){
@@ -35,6 +37,7 @@ class NewNoteWidget : GlanceAppWidget(){
 }
 @Composable
 fun WidgetContent(){
+    val context = LocalContext.current
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -43,11 +46,11 @@ fun WidgetContent(){
         horizontalAlignment = Alignment.Horizontal.CenterHorizontally
     ){
         Button(
-            text = "Add Note",
+            text = context.getString(R.string.add_note),
             onClick = {}
         )
         Text(
-            text = "Glyph Notes",
+            text = context.getString(R.string.app_name),
             style = TextStyle(
                 color = GlanceTheme.colors.onSurface
             )
