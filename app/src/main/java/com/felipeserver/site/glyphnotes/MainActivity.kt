@@ -38,6 +38,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.felipeserver.site.glyphnotes.ui.components.RichTextEditorNoteDetail
 import com.felipeserver.site.glyphnotes.ui.screens.CalendarScreen
 import com.felipeserver.site.glyphnotes.ui.screens.FavoritesScreen
 import com.felipeserver.site.glyphnotes.ui.screens.HomeScreen
@@ -92,7 +93,7 @@ class MainActivity : ComponentActivity() {
                         floatingActionButton = {
                             if (showBottomBar) {
                                 FloatingActionButton(
-                                    onClick = { navController.navigate("note_detail_screen/-1") },
+                                    onClick = { navController.navigate("note_rich_text_editor_screen/-1") },
                                     containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
                                     elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
                                 ) {
@@ -106,21 +107,23 @@ class MainActivity : ComponentActivity() {
                                     val items = listOf(
                                         Screen.Home to Icons.Default.Home,
                                         Screen.Favorites to Icons.Default.Favorite,
-                                        Screen.Calendar to Icons.Default.CalendarMonth
+                                        Screen.Calendar to Icons.Default.CalendarMonth,
+                                        Screen.NoteRichTextEditor to Icons.Default.Add
                                     )
                                     items.forEach { (screen, icon) ->
                                         NavigationBarItem(
                                             icon = { Icon(icon, contentDescription = null) },
                                             label = { Text(
                                                 screen.rout.substringBefore("_")
-                                                    .replaceFirstChar {
+                                                    .replaceFirstChar { 
                                                         if (it.isLowerCase()) it.titlecase(
                                                             getDefault()
-                                                        ) else it.toString()
+                                                        ) else it.toString() 
                                                     }) },
                                             selected = currentDestination?.hierarchy?.any { it.route == screen.rout } == true,
                                             onClick = {
-                                                navController.navigate(screen.rout) {
+                                                val route = screen.rout.replace("{noteId}", "-1")
+                                                navController.navigate(route) {
                                                     popUpTo(navController.graph.findStartDestination().id) {
                                                         saveState = true
                                                     }
@@ -156,7 +159,7 @@ class MainActivity : ComponentActivity() {
                                 HomeScreen(
                                     modifier = Modifier.padding(innerPadding),
                                     onNoteClick = { noteId ->
-                                        navController.navigate("note_detail_screen/$noteId")
+                                        navController.navigate("note_rich_text_editor_screen/$noteId")
                                     }
                                 )
                             }
@@ -167,7 +170,7 @@ class MainActivity : ComponentActivity() {
                                 FavoritesScreen(
                                     modifier = Modifier.padding(innerPadding),
                                     onNoteClick = { noteId ->
-                                        navController.navigate("note_detail_screen/$noteId")
+                                        navController.navigate("note_rich_text_editor_screen/$noteId")
                                     }
                                 )
                             }
@@ -180,6 +183,16 @@ class MainActivity : ComponentActivity() {
                             ) { backStackEntry ->
                                 val noteId = backStackEntry.arguments?.getInt("noteId") ?: -1
                                 NoteDetailScreen(
+                                    id = noteId,
+                                    navController = navController
+                                )
+                            }
+                            composable(
+                                route = Screen.NoteRichTextEditor.rout,
+                                arguments = listOf(navArgument("noteId") { type = NavType.IntType })
+                            ) { backStackEntry ->
+                                val noteId = backStackEntry.arguments?.getInt("noteId") ?: -1
+                                RichTextEditorNoteDetail(
                                     id = noteId,
                                     navController = navController
                                 )

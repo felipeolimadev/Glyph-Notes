@@ -38,6 +38,8 @@
     <string name="select_tags">Select Tags</string>
     <string name="search_tags">Search tags…</string>
     <string name="delete_tag_desc">Delete Tag</string>
+    <string name="delete_tag_title">Delete Tag</string>
+    <string name="delete_tag_confirmation">Are you sure you want to delete the tag \"%1$s\"? This action cannot be undone.</string>
     <string name="localized_description">Localized description</string>
     <string name="pin_color_animation_label">Pin color animation</string>
     <string name="pin_note_desc">Pin note</string>
@@ -47,8 +49,9 @@
     <string name="delete_action">Delete</string>
     <string name="delete_note_desc">Delete Note</string>
     <string name="title_label">Title</string>
-    <string name="content_placeholder">Content</string>
+    <string name="content_placeholder">Capture your thoughts...</string>
     <string name="add_tag_desc">Add Tag</string>
+    <string name="add_tag_with_name">Add \"%1$s\"</string>
 
     <!-- HomeScreen -->
     <string name="today">Today</string>
@@ -64,4 +67,12 @@
 
     <!-- PinnedCard -->
     <string name="heart_desc">Heart</string>
+    <string name="bold_format">bold</string>
+    <string name="italic_format">italic</string>
+    <string name="underline_format">underline</string>
+    <string name="format_list_numbered">Numbered List</string>
+    <string name="add_link">add link</string>
+    <string name="confirm">Confirm</string>
+    <string name="cancel">Cancel</string>
+    <string name="title_placeholder">Título da nota</string>
 </resources>

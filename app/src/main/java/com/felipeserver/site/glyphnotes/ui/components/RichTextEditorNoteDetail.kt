@@ -1,8 +1,7 @@
-package com.felipeserver.site.glyphnotes.ui.screens
+package com.felipeserver.site.glyphnotes.ui.components
 
 import android.content.res.Configuration
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,30 +10,40 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FormatBold
+import androidx.compose.material.icons.filled.FormatItalic
+import androidx.compose.material.icons.filled.FormatListNumbered
+import androidx.compose.material.icons.filled.FormatUnderlined
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
@@ -47,32 +56,42 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.substring
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.data.db.NoteDatabase
+import com.felipeserver.site.glyphnotes.ui.screens.TagItem
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteDetailEvent
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModel
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModelFactory
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.dateFormatterRelative
+import com.mohamedrejeb.richeditor.model.RichTextState
+import com.mohamedrejeb.richeditor.model.rememberRichTextState
+import com.mohamedrejeb.richeditor.ui.material3.RichTextEditor
+import com.mohamedrejeb.richeditor.ui.material3.RichTextEditorDefaults
 import kotlinx.coroutines.launch
 import java.util.Date
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun NoteDetailScreen(
+fun RichTextEditorNoteDetail(
     modifier: Modifier = Modifier,
     id: Int,
     navController: NavController
@@ -85,11 +104,15 @@ fun NoteDetailScreen(
     val uiState by notesViewModel.uiState.collectAsState()
     val allTags by notesViewModel.allTags.collectAsState()
 
+    val state = rememberRichTextState()
+    state.config.linkColor = MaterialTheme.colorScheme.primary
+
     LaunchedEffect(key1 = id) {
         notesViewModel.onEvent(NoteDetailEvent.LoadNote(id))
     }
-    NoteDetailUi(
-        modifier = modifier,
+
+    NoteRTE(
+        modifier = modifier, state = state,
         title = uiState.title,
         content = uiState.content,
         tags = uiState.tags,
@@ -125,8 +148,10 @@ fun NoteDetailScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NoteDetailUi(
+fun NoteRTE(
     modifier: Modifier = Modifier,
+    state: RichTextState,
+    currentSpanStyle: SpanStyle? = null,
     title: String,
     content: String,
     tags: List<String>,
@@ -150,7 +175,110 @@ fun NoteDetailUi(
 
     val scope = rememberCoroutineScope()
 
+    var showLinkDialog by rememberSaveable { mutableStateOf(false) }
+    var linkUrl by rememberSaveable { mutableStateOf("") }
+    
+    // Estado para confirmação de exclusão de tag
+    var showDeleteTagDialog by remember { mutableStateOf(false) }
+    var tagToDelete by remember { mutableStateOf("") }
+    
+    // Guarda o último conteúdo sincronizado para evitar loops
+    var lastSyncedContent by remember { mutableStateOf(content) }
+    
+    // Sincroniza o conteúdo externo (do ViewModel) para o RichTextState
+    // Só executa quando o conteúdo muda de fora (ex: ao carregar uma nota)
+    LaunchedEffect(content) {
+        // Só sincroniza se o conteúdo mudou externamente (não por digitação)
+        if (content != lastSyncedContent) {
+            state.setMarkdown(content)
+            lastSyncedContent = content
+        }
+    }
 
+    // Sincroniza as mudanças do editor para o ViewModel
+    LaunchedEffect(state.annotatedString) {
+        val markdown = state.toMarkdown()
+        // Só notifica se mudou e não é o mesmo que acabamos de sincronizar
+        if (markdown != lastSyncedContent) {
+            lastSyncedContent = markdown
+            onContentChange(markdown)
+        }
+    }
+
+    if (showLinkDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showLinkDialog = false
+                linkUrl = ""
+            },
+            title = { Text(stringResource(R.string.add_link)) },
+            text = {
+                OutlinedTextField(
+                    value = linkUrl,
+                    onValueChange = { linkUrl = it },
+                    label = { Text("URL") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val selectedText = state.annotatedString.text.substring(state.selection)
+                        state.addLink(
+                            text = if (selectedText.isNotEmpty()) selectedText else linkUrl,
+                            url = linkUrl
+                        )
+                        showLinkDialog = false
+                        linkUrl = ""
+                    }
+                ) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showLinkDialog = false
+                        linkUrl = ""
+                    }
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+    
+    // Diálogo de confirmação para exclusão de tag
+    if (showDeleteTagDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteTagDialog = false
+                tagToDelete = ""
+            },
+            title = { Text(stringResource(R.string.delete_tag_title)) },
+            text = { Text(stringResource(R.string.delete_tag_confirmation, tagToDelete)) },
+            icon = {
+                Icon(Icons.Default.Delete, contentDescription = null)
+            },
+            confirmButton = {
+                Button(onClick = {
+                    onDeleteTag(tagToDelete)
+                    showDeleteTagDialog = false
+                    tagToDelete = ""
+                }) {
+                    Text(stringResource(R.string.delete_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDeleteTagDialog = false
+                    tagToDelete = ""
+                }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
     if (showBottomSheet) {
         LaunchedEffect(tags) {
             tempSelectedTags = tags
@@ -231,7 +359,10 @@ fun NoteDetailUi(
                                     .padding(start = 16.dp)
                                     .weight(1f)
                             )
-                            IconButton(onClick = { onDeleteTag(tag) }) {
+                            IconButton(onClick = {
+                                tagToDelete = tag
+                                showDeleteTagDialog = true
+                            }) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = stringResource(R.string.delete_tag_desc)
@@ -243,15 +374,36 @@ fun NoteDetailUi(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Botão para adicionar nova tag
+                if (valueSearchMBS.isNotBlank() && !allTags.any { it.equals(valueSearchMBS, ignoreCase = true) }) {
+                    Button(
+                        onClick = {
+                            val newTag = valueSearchMBS.trim()
+                            val currentTags = tempSelectedTags.toMutableList()
+                            if (!currentTags.contains(newTag)) {
+                                currentTags.add(newTag)
+                            }
+                            tempSelectedTags = currentTags
+                            onTagsChange(tempSelectedTags)
+                            valueSearchMBS = ""
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text(stringResource(R.string.add_tag_with_name, valueSearchMBS.trim()))
+                    }
+                }
 
             }
         }
     }
-
-
     Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
+        modifier = modifier.imePadding(),
+        topBar ={
             CenterAlignedTopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -313,6 +465,13 @@ fun NoteDetailUi(
                                 }) {
                                     Text(stringResource(R.string.delete_action))
                                 }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = {
+                                    showDeleteDialog = false
+                                }) {
+                                    Text(stringResource(R.string.cancel))
+                                }
                             })
                     }
                     IconButton(onClick = {
@@ -326,54 +485,108 @@ fun NoteDetailUi(
                 },
                 scrollBehavior = scrollBehavior,
             )
-        }
-    ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            TextField(
-                value = title,
-                onValueChange = onTitleChange,
-                label = { Text(text = stringResource(R.string.title_label)) },
-                textStyle = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = FontWeight(500)
-                ),
-                maxLines = 1,
-                modifier = Modifier.fillMaxWidth(),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.background,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
-                    focusedIndicatorColor = MaterialTheme.colorScheme.background,
-                    unfocusedIndicatorColor = MaterialTheme.colorScheme.background,
-                    focusedLabelColor = MaterialTheme.colorScheme.background,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.background,
-                )
-            )
-
-            TextField(
-                value = content,
-                onValueChange = onContentChange,
-                placeholder = { Text(stringResource(R.string.content_placeholder)) },
-                textStyle = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight(400),
-                    color = MaterialTheme.colorScheme.onSurface
-                ),
+        },
+        bottomBar = {
+            Row(
                 modifier = Modifier
-                    .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surface),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedLabelColor = Color.Transparent,
-                    unfocusedLabelColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    errorContainerColor = Color.Transparent
-                )
-            )
+                    .navigationBarsPadding(),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
 
+                //Bold Button
+                IconButton(
+                    onClick = {
+                        state.toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                    }, colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (state.currentSpanStyle.fontWeight == FontWeight.Bold) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        contentColor = if (state.currentSpanStyle.fontWeight == FontWeight.Bold) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Icon(
+                        Icons.Filled.FormatBold,
+                        contentDescription = stringResource(R.string.bold_format)
+                    )
+                }
+                //Italic Button
+                IconButton(
+                    onClick = {
+                        state.toggleSpanStyle(SpanStyle(fontStyle = FontStyle.Italic))
+                    }, colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (state.currentSpanStyle.fontStyle == FontStyle.Italic) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        contentColor = if (state.currentSpanStyle.fontStyle == FontStyle.Italic) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.FormatItalic,
+                        contentDescription = stringResource(R.string.italic_format)
+                    )
+                }
+                //Underline Button
+                IconButton(
+                    onClick = {
+                        state.toggleSpanStyle(SpanStyle(textDecoration = TextDecoration.Underline))
+                    },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (state.currentSpanStyle.textDecoration == TextDecoration.Underline) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        contentColor = if (state.currentSpanStyle.textDecoration == TextDecoration.Underline) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.FormatUnderlined,
+                        contentDescription = stringResource(R.string.underline_format)
+                    )
+                }
+                //Ordererd List Button
+                IconButton(
+                    onClick = {
+                        state.toggleOrderedList()
+                    },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (state.isOrderedList) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        contentColor = if (state.isOrderedList) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.FormatListNumbered,
+                        contentDescription = stringResource(R.string.format_list_numbered)
+                    )
+                }
+                //Unordererd List Button
+                IconButton(
+                    onClick = {
+                        state.toggleUnorderedList()
+                    },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (state.isUnorderedList) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        contentColor = if (state.isUnorderedList) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
+                        contentDescription = stringResource(R.string.format_list_numbered)
+                    )
+                }
+                //Link Button
+                IconButton(
+                    onClick = {
+                        showLinkDialog = true
+                    },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (state.isLink) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        contentColor = if (state.isLink) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Link,
+                        contentDescription = stringResource(R.string.format_list_numbered)
+                    )
+                }
+            }
+            
+        }) { innerPadding ->
+        Column(modifier = Modifier.padding(innerPadding)) {
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -396,49 +609,43 @@ fun NoteDetailUi(
 
 
             }
+            TextField(
+                value = title,
+                placeholder = { Text(stringResource(R.string.title_placeholder)) },
+                onValueChange = onTitleChange,
+                label = { Text(text = stringResource(R.string.title_label)) },
+                textStyle = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight(500)
+                ),
+                maxLines = 1,
+                modifier = Modifier.fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.background,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.secondary,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.secondary,
+                )
+            )
+            RichTextEditor(
+                modifier = Modifier
+                    .fillMaxSize(), state = state,
+                placeholder = { Text(stringResource(R.string.content_placeholder)) },
+                colors = RichTextEditorDefaults.richTextEditorColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
         }
     }
 }
 
+@Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-fun TagItem(modifier: Modifier, tag: String) {
-    FilterChip(
-        modifier = modifier,
-        onClick = { /*TODO*/ },
-        label = {
-            Text(text = tag, style = MaterialTheme.typography.labelSmall)
-        },
-        selected = false
-    )
-}
-
-
-@Preview(
-    name = "Filled Note",
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
-)
-@Composable
-private fun NoteDetailUiPreview_Filled() {
+fun RichTextEditorNoteDetailPreview() {
     GlyphNotesTheme {
-        NoteDetailUi(
-            title = "Team Meeting Recap",
-            content = """Here are the key takeaways from our meeting today:
-
-- Q3 roadmap is finalized.
-- Budget proposal needs minor adjustments.
-- The team offsite is sche""",
-            tags = listOf("Work", "Meetings", "Q3"),
-            allTags = listOf("Work", "Meetings", "Q3", "Personal", "Urgent"),
-            lastEditDate = Date(),
-            isPinned = true,
-            onTitleChange = {},
-            onContentChange = {},
-            onTagsChange = {},
-            onDeleteTag = {},
-            onTogglePin = {},
-            onBackPress = {},
-            onDeleteNote = {}
+        RichTextEditorNoteDetail(
+            id = 1, navController = NavController(LocalContext.current)
         )
     }
 }

@@ -39,6 +39,8 @@
     <string name="select_tags">Selecionar Tags</string>
     <string name="search_tags">Buscar tags…</string>
     <string name="delete_tag_desc">Excluir Tag</string>
+    <string name="delete_tag_title">Excluir Tag</string>
+    <string name="delete_tag_confirmation">Tem certeza que deseja excluir a tag \"%1$s\"? Esta ação não pode ser desfeita.</string>
     <string name="localized_description">Descrição localizada</string>
     <string name="pin_color_animation_label">Animação de cor do pin</string>
     <string name="pin_note_desc">Fixar nota</string>
@@ -48,8 +50,9 @@
     <string name="delete_action">Excluir</string>
     <string name="delete_note_desc">Excluir Nota</string>
     <string name="title_label">Título</string>
-    <string name="content_placeholder">Conteúdo</string>
+    <string name="content_placeholder">Capture seus pensamentos...</string>
     <string name="add_tag_desc">Adicionar Tag</string>
+    <string name="add_tag_with_name">Adicionar \"%1$s\"</string>
 
     <!-- HomeScreen -->
     <string name="today">Hoje</string>
@@ -65,4 +68,12 @@
 
     <!-- PinnedCard -->
     <string name="heart_desc">Coração</string>
+    <string name="bold_format">negrito</string>
+    <string name="italic_format">itálico</string>
+    <string name="underline_format">sublinhado</string>
+    <string name="format_list_numbered">Lista Odernada</string>
+    <string name="cancel">Cancelar</string>
+    <string name="title_placeholder">Título da nota</string>
+    <string name="add_link">adicionar link</string>
+    <string name="confirm">Confirmar</string>
 </resources>

@@ -13,5 +13,5 @@ sealed class Screen(val rout: String) {
 
     object NoteDetail: Screen("note_detail_screen/{noteId}")
 
-
+    object NoteRichTextEditor: Screen("note_rich_text_editor_screen/{noteId}")
 }

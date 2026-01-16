@@ -139,14 +139,12 @@ fun HomeContent(
         }
     }
 
-    val pinnedNotes = remember(filteredNotes) { filteredNotes.filter { it.isPinned } }
-    val normalNotes = remember(filteredNotes) { filteredNotes.filter { !it.isPinned } }
-    
     val monthYearFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
 
-    val groupedNormalNotes = remember(normalNotes, todayString, yesterdayString) {
+    // Agrupa todas as notas por data (sem separar pinned/normal)
+    val groupedNotes = remember(filteredNotes, todayString, yesterdayString) {
 
-        normalNotes.groupBy { getNoteGroup(it.creationDate, todayString, yesterdayString) }
+        filteredNotes.groupBy { getNoteGroup(it.creationDate, todayString, yesterdayString) }
             .toSortedMap(compareByDescending { header ->
                 when (header) {
                     todayString -> Calendar.getInstance().time
@@ -189,7 +187,7 @@ fun HomeContent(
                 contentPadding = PaddingValues(vertical = MaterialTheme.dimens.paddingLarge),
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.dimens.paddingLarge)
             ) {
-                groupedNormalNotes.forEach { (header, notesInGroup) ->
+                groupedNotes.forEach { (header, notesInGroup) ->
                     stickyHeader {
                         Surface(
                             modifier = Modifier
@@ -209,7 +207,7 @@ fun HomeContent(
                     }
                     items(
                         items = notesInGroup,
-                        key = { note -> "normal-${note.id}" },
+                        key = { note -> "note-${note.id}" },
                     ) { note ->
                         val formattedDate = remember(note.creationDate) {
                             dateFormatterRelative(note.creationDate.time)

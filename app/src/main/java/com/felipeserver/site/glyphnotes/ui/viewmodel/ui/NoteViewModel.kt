@@ -26,6 +26,9 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
     val allTags: StateFlow<List<String>> = _allTags.asStateFlow()
 
     private var originalState: NoteDetailUiState? = null
+    
+    // ID da nota salva (para evitar criar duplicatas sem atualizar uiState)
+    private var savedNoteId: Int? = null
 
     init {
         viewModelScope.launch {
@@ -80,6 +83,9 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
     }
 
     private fun loadNote(id: Int) {
+        // Reseta o ID salvo quando carrega uma nova nota
+        savedNoteId = null
+        
         if (id == -1) {
             val newState = NoteDetailUiState(isNewNote = true)
             _uiState.value = newState
@@ -143,11 +149,16 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
         viewModelScope.launch {
             val currentState = _uiState.value
 
-            if (currentState.isNewNote && currentState.title.isBlank() && currentState.content.isBlank()) {
+            // Não salva se for nota nova E vazia E não favoritada
+            val isEmpty = currentState.title.isBlank() && currentState.content.isBlank()
+            if (currentState.isNewNote && isEmpty && !currentState.isPinned) {
                 return@launch
             }
 
-            val noteToSave = if (currentState.isNewNote) {
+            // Usa o savedNoteId se já tiver sido salvo anteriormente
+            val noteId = savedNoteId ?: currentState.id
+            
+            val noteToSave = if (noteId == null) {
                 Note(
                     title = currentState.title,
                     content = currentState.content,
@@ -159,7 +170,7 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
                 )
             } else {
                 Note(
-                    id = currentState.id!!,
+                    id = noteId,
                     title = currentState.title,
                     content = currentState.content,
                     tags = currentState.tags,
@@ -169,7 +180,13 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
                     lastEditDate = Date()
                 )
             }
-            noteDao.upsertNote(noteToSave)
+            
+            val returnedId = noteDao.upsertNote(noteToSave)
+            
+            // Armazena o ID retornado para usos futuros (sem atualizar uiState)
+            if (savedNoteId == null && returnedId > 0) {
+                savedNoteId = returnedId.toInt()
+            }
         }
     }
 }
