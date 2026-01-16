@@ -75,4 +75,5 @@
     <string name="confirm">Confirm</string>
     <string name="cancel">Cancel</string>
     <string name="title_placeholder">Título da nota</string>
+    <string name="title_format_desc">format as title</string>
 </resources>

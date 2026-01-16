@@ -84,7 +84,9 @@ fun FavoritesContent(
                             content = note.content,
                             date = formattedDate,
                             category = note.category,
-                            onClick = { onNoteClick(note.id) }
+                            onClick = { onNoteClick(note.id) },
+                            isPinned = note.isPinned,
+                            tags = note.tags
                         )
                     }
                 }

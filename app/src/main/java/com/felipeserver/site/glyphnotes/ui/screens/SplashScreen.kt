@@ -26,6 +26,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.font.FontWeight
 import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
 import com.felipeserver.site.glyphnotes.ui.viewmodel.navigation.Screen
@@ -62,6 +72,11 @@ fun SplashScreen(navController: NavController, usernameState: String?) {
         }
     }
 
+    var startAnimation by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        startAnimation = true
+    }
+
     Scaffold() { innerPadding ->
         Box(
             modifier = Modifier
@@ -84,15 +99,34 @@ fun SplashScreen(navController: NavController, usernameState: String?) {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    modifier = Modifier.size(500.dp),
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    contentDescription = stringResource(R.string.splash_screen_desc)
-                )
-                Text(
-                    text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.displayLargeEmphasized
-                )
+                AnimatedVisibility(
+                    visible = startAnimation,
+                    enter = scaleIn(tween(1000)) + fadeIn(tween(1000))
+                ) {
+                    Icon(
+                        modifier = Modifier
+                            .size(200.dp) // Adjusted size for better proportion
+                            .padding(bottom = 32.dp),
+                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                        contentDescription = stringResource(R.string.splash_screen_desc),
+                        tint = Color.White // Ensure visibility on dark gradient
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = startAnimation,
+                    enter = slideInVertically(
+                        initialOffsetY = { 50 },
+                        animationSpec = tween(1000)
+                    ) + fadeIn(tween(1000))
+                ) {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
         }
     }

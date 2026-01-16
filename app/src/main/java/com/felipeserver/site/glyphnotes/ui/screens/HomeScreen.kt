@@ -7,18 +7,23 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,25 +34,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.RenderVectorGroup
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.ssjetpackcomposeswipeableview.SwipeAbleItemView
-import com.example.ssjetpackcomposeswipeableview.SwipeDirection
 import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.data.db.Note
 import com.felipeserver.site.glyphnotes.data.db.NoteDatabase
 import com.felipeserver.site.glyphnotes.ui.components.NoteItem
 import com.felipeserver.site.glyphnotes.ui.components.ProfileBar
 import com.felipeserver.site.glyphnotes.ui.components.SearchBarField
+import com.felipeserver.site.glyphnotes.ui.components.SwipeToRevealItem
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
 import com.felipeserver.site.glyphnotes.ui.theme.dimens
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteDetailEvent
@@ -59,32 +57,10 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-/**
- * Helper function para criar um Painter com tamanho customizado a partir de um ImageVector.
- * Útil quando bibliotecas não oferecem controle direto sobre o tamanho do ícone.
- *
- * @param image O ImageVector original (ex: Icons.Filled.Delete)
- * @param size O tamanho desejado em Dp
- */
-@Composable
-fun rememberSizedVectorPainter(
-    image: ImageVector,
-    size: Dp
-) = rememberVectorPainter(
-    defaultWidth = size,
-    defaultHeight = size,
-    viewportWidth = image.viewportWidth,
-    viewportHeight = image.viewportHeight,
-    name = image.name,
-    tintColor = Color.Unspecified,
-    tintBlendMode = image.tintBlendMode,
-    autoMirror = image.autoMirror,
-    content = { _, _ -> RenderVectorGroup(group = image.root) }
-)
-
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
     onNoteClick: (Int) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -96,28 +72,38 @@ fun HomeScreen(
     val allNotes by notesViewModel.allNotes.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
+    var selectedTags by remember { mutableStateOf(setOf<String>()) }
+    var showFilterSheet by remember { mutableStateOf(false) }
 
     HomeContent(
         modifier = modifier,
+        contentPadding = contentPadding,
         notes = allNotes,
         onNoteClick = onNoteClick,
-        onNoteDismissed = { note -> notesViewModel.onEvent(NoteDetailEvent.DeleteNote(note.id)) },
+        onNoteDelete = { note -> notesViewModel.onEvent(NoteDetailEvent.DeleteNote(note.id)) },
         searchQuery = searchQuery,
-        onQueryChange = { searchQuery = it }
+        onQueryChange = { searchQuery = it },
+        selectedTags = selectedTags,
+        onTagsChanged = { selectedTags = it },
+        showFilterSheet = showFilterSheet,
+        onFilterSheetChange = { showFilterSheet = it }
     )
 }
 
-@OptIn(
-    ExperimentalFoundationApi::class
-)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun HomeContent(
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues,
     notes: List<Note>,
     onNoteClick: (Int) -> Unit,
-    onNoteDismissed: (Note) -> Unit,
+    onNoteDelete: (Note) -> Unit,
     searchQuery: String,
-    onQueryChange: (String) -> Unit
+    onQueryChange: (String) -> Unit,
+    selectedTags: Set<String>,
+    onTagsChanged: (Set<String>) -> Unit,
+    showFilterSheet: Boolean,
+    onFilterSheetChange: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
     val listStateNotes = rememberLazyListState()
@@ -125,19 +111,26 @@ fun HomeContent(
     // Extract string resources before remember blocks to avoid composition issues
     val todayString = stringResource(R.string.today)
     val yesterdayString = stringResource(R.string.yesterday)
-    val editRightClickedString = stringResource(R.string.edit_right_clicked)
-    val noteDismissedString = stringResource(R.string.note_dismissed)
+    val noteDeletedString = stringResource(R.string.note_dismissed)
 
-    val filteredNotes = remember(notes, searchQuery) {
-        if (searchQuery.isBlank()) {
-            notes
-        } else {
-            notes.filter { note ->
+    val filteredNotes = remember(notes, searchQuery, selectedTags) {
+        notes.filter { note ->
+            val matchesQuery = if (searchQuery.isBlank()) true else {
                 note.title.contains(searchQuery, ignoreCase = true) ||
                         note.content.contains(searchQuery, ignoreCase = true)
             }
+            val matchesTags = if (selectedTags.isEmpty()) true else {
+                note.tags.any { it in selectedTags }
+            }
+            matchesQuery && matchesTags
         }
     }
+
+    val allTags = remember(notes) {
+        notes.flatMap { it.tags }.filter { it.isNotBlank() }.distinct().sorted()
+    }
+    
+    val sheetState = rememberModalBottomSheetState()
 
     val monthYearFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
 
@@ -173,18 +166,22 @@ fun HomeContent(
             modifier = Modifier.background(Color.Transparent),
             verticalArrangement = Arrangement.Top,
         ) {
-            ProfileBar()
+            ProfileBar(contentPadding = contentPadding)
             SearchBarField(
                 modifier = modifier,
                 query = searchQuery,
-                onQueryChange = onQueryChange
+                onQueryChange = onQueryChange,
+                onFilterClick = { onFilterSheetChange(true) }
             )
 
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 state = listStateNotes,
                 horizontalAlignment = Alignment.CenterHorizontally,
-                contentPadding = PaddingValues(vertical = MaterialTheme.dimens.paddingLarge),
+                contentPadding = PaddingValues(
+                    top = MaterialTheme.dimens.paddingLarge,
+                    bottom = MaterialTheme.dimens.paddingLarge + contentPadding.calculateBottomPadding()
+                ),
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.dimens.paddingLarge)
             ) {
                 groupedNotes.forEach { (header, notesInGroup) ->
@@ -212,59 +209,86 @@ fun HomeContent(
                         val formattedDate = remember(note.creationDate) {
                             dateFormatterRelative(note.creationDate.time)
                         }
-                        var itemHeight by remember { mutableStateOf<Dp?>(null) }
-                        val density = LocalDensity.current
-
-                        SwipeAbleItemView(
-                            leftViewIcons = arrayListOf(),
-                            rightViewIcons = arrayListOf(
-                                Triple(rememberSizedVectorPainter(image = Icons.Filled.Delete, size = 32.dp), MaterialTheme.colorScheme.errorContainer, "btnDeleteRight")
-                            ),
-                            position = 0,
-                            swipeDirection = SwipeDirection.LEFT,
-                            onClick = {
-                                when(it.second) {
-                                    "btnEditRight" -> {
-                                        Toast.makeText(context, editRightClickedString, Toast.LENGTH_SHORT).show()
-                                    }
-                                    "btnDeleteRight" -> {
-                                        onNoteDismissed(note)
-                                        Toast.makeText(context, noteDismissedString, Toast.LENGTH_SHORT).show()
-                                    }
+                        
+                        // Swipe to reveal delete button - only deletes when button is clicked
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = MaterialTheme.dimens.paddingLarge)
+                        ) {
+                            SwipeToRevealItem(
+                                onDeleteClick = {
+                                    onNoteDelete(note)
+                                    Toast.makeText(context, noteDeletedString, Toast.LENGTH_SHORT).show()
                                 }
-                            },
-                            leftViewWidth = 0.dp,
-                            rightViewWidth = 140.dp,
-                            height = itemHeight ?: 200.dp,
-                            leftViewBackgroundColor = Color.Transparent,
-                            rightViewBackgroundColor = MaterialTheme.colorScheme.background,
-                            cornerRadius = 4.dp,
-                            leftSpace = 0.dp,
-                            rightSpace = 10.dp,
-                            fractionalThreshold = 0.3f
-                        )
-                         {
-                        Box(modifier = Modifier
-                            .padding(horizontal = MaterialTheme.dimens.paddingLarge)
-                            .onGloballyPositioned { coordinates ->
-                                itemHeight = with(density) { coordinates.size.height.toDp() }
-                            }) {
-                            NoteItem(
-                                id = note.id,
-                                title = note.title,
-                                content = note.content,
-                                date = formattedDate,
-                                category = note.category,
-                                onClick = { onNoteClick(note.id) }
-                            )
+                            ) {
+                                NoteItem(
+                                    id = note.id,
+                                    title = note.title,
+                                    content = note.content,
+                                    date = formattedDate,
+                                    category = note.category,
+                                    isPinned = note.isPinned,
+                                    tags = note.tags,
+                                    onClick = { onNoteClick(note.id) }
+                                )
+                            }
                         }
                     }
+                }
+            }
+            }
+        }
+        
+        if (showFilterSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { onFilterSheetChange(false) },
+                sheetState = sheetState
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(MaterialTheme.dimens.paddingLarge)
+                ) {
+                    Text(
+                        text = "Filtrar por Tags",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(bottom = MaterialTheme.dimens.paddingMedium)
+                    )
+                    
+                    if (allTags.isEmpty()) {
+                        Text(
+                            text = "Nenhuma tag disponível.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            allTags.forEach { tag ->
+                                val isSelected = tag in selectedTags
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        val newTags = if (isSelected) {
+                                            selectedTags - tag
+                                        } else {
+                                            selectedTags + tag
+                                        }
+                                        onTagsChanged(newTags)
+                                    },
+                                    label = { Text(tag) }
+                                )
+                            }
+                        }
                     }
+                    Spacer(modifier = Modifier.padding(bottom = MaterialTheme.dimens.paddingLarge)) // Bottom spacing
                 }
             }
         }
     }
-}
+
 
 private fun getNoteGroup(date: Date, todayString: String, yesterdayString: String): String {
     val calendar = Calendar.getInstance()
@@ -305,9 +329,9 @@ fun HomeScreenPreview() {
                 id = 1,
                 title = "Ideias para o App",
                 content = "Explorar novas features de IA para o editor de notas.",
-                tags = emptyList(),
+                tags = listOf("IA", "Dev", "Mobile"),
                 category = "Trabalho",
-                isPinned = false,
+                isPinned = true,
                 creationDate = today,
                 lastEditDate = today
             ),
@@ -315,7 +339,7 @@ fun HomeScreenPreview() {
                 id = 2,
                 title = "Lista de Compras",
                 content = "Leite, pão, ovos e café.",
-                tags = emptyList(),
+                tags = listOf("Casa", "Mercado"),
                 category = "Pessoal",
                 isPinned = false,
                 creationDate = today,
@@ -343,11 +367,17 @@ fun HomeScreenPreview() {
             )
         )
         HomeContent(
+            modifier = Modifier,
+            contentPadding = PaddingValues(top = 32.dp, bottom = 32.dp),
             notes = mockNotes,
             onNoteClick = {},
-            onNoteDismissed = {},
+            onNoteDelete = {},
             searchQuery = "",
-            onQueryChange = {}
+            onQueryChange = {},
+            selectedTags = emptySet(),
+            onTagsChanged = {},
+            showFilterSheet = false,
+            onFilterSheetChange = {}
         )
     }
 }

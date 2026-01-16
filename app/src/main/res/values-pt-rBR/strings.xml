@@ -76,4 +76,5 @@
     <string name="title_placeholder">Título da nota</string>
     <string name="add_link">adicionar link</string>
     <string name="confirm">Confirmar</string>
+    <string name="title_format_desc">Formatar como título</string>
 </resources>

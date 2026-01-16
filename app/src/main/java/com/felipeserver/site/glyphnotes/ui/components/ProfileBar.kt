@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,12 +32,17 @@ import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.getUsername
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun ProfileBar(modifier: Modifier = Modifier) {
+fun ProfileBar(
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(0.dp)
+) {
     val context = LocalContext.current
     val username = getUsername(context).collectAsState(initial = "")
     Row(
         modifier = modifier
             .fillMaxWidth()
+            // Top padding = Status Bar Height + 16dp margin
+            .padding(top = contentPadding.calculateTopPadding() + MaterialTheme.dimens.paddingLarge)
             .padding(horizontal = MaterialTheme.dimens.paddingLarge),
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically

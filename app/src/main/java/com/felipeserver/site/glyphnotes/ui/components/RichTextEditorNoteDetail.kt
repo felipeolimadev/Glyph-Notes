@@ -1,15 +1,23 @@
 package com.felipeserver.site.glyphnotes.ui.components
 
 import android.content.res.Configuration
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -31,16 +39,21 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FabPosition
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconToggleButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,6 +75,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontStyle
@@ -76,7 +90,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.felipeserver.site.glyphnotes.R
 import com.felipeserver.site.glyphnotes.data.db.NoteDatabase
-import com.felipeserver.site.glyphnotes.ui.screens.TagItem
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteDetailEvent
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModel
@@ -146,7 +159,7 @@ fun RichTextEditorNoteDetail(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun NoteRTE(
     modifier: Modifier = Modifier,
@@ -175,16 +188,19 @@ fun NoteRTE(
 
     val scope = rememberCoroutineScope()
 
+    val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+
+
     var showLinkDialog by rememberSaveable { mutableStateOf(false) }
     var linkUrl by rememberSaveable { mutableStateOf("") }
-    
+
     // Estado para confirmação de exclusão de tag
     var showDeleteTagDialog by remember { mutableStateOf(false) }
     var tagToDelete by remember { mutableStateOf("") }
-    
+
     // Guarda o último conteúdo sincronizado para evitar loops
     var lastSyncedContent by remember { mutableStateOf(content) }
-    
+
     // Sincroniza o conteúdo externo (do ViewModel) para o RichTextState
     // Só executa quando o conteúdo muda de fora (ex: ao carregar uma nota)
     LaunchedEffect(content) {
@@ -247,7 +263,7 @@ fun NoteRTE(
             }
         )
     }
-    
+
     // Diálogo de confirmação para exclusão de tag
     if (showDeleteTagDialog) {
         AlertDialog(
@@ -294,78 +310,73 @@ fun NoteRTE(
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     stringResource(R.string.select_tags),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
+                // Search Field
+                OutlinedTextField(
+                    value = valueSearchMBS,
+                    onValueChange = { newValue ->
+                        valueSearchMBS = newValue
+                        scope.launch {
+                            sheetState.expand()
+                        }
+                    },
+                    label = { Text(stringResource(R.string.search_tags)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    leadingIcon = {
+                        Icon(Icons.Default.Add, contentDescription = null) // Using Add as search/action icon or Search if available
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Tag Cloud
+                val filteredTags = allTags.filter { it.contains(valueSearchMBS, ignoreCase = true) }
+                
                 LazyColumn(modifier = Modifier.weight(1f)) {
-                    item() {
-                        TextField(
-
-                            value = valueSearchMBS,
-                            onValueChange = { newValue ->
-                                valueSearchMBS = newValue
-                                scope.launch {
-                                    sheetState.expand()
-                                }
-                            },
-                            label = { Text(stringResource(R.string.search_tags)) },
+                    item {
+                        @OptIn(ExperimentalLayoutApi::class)
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            textStyle = MaterialTheme.typography.headlineSmall.copy(
-                                fontWeight = FontWeight(500)
-                            ),
-                            maxLines = 1,
-
-                            )
-                    }
-                    items(items = allTags.filter {
-                        it.contains(
-                            valueSearchMBS,
-                            ignoreCase = true
-                        )
-                    }) { tag ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    val currentTags = tempSelectedTags.toMutableList()
-                                    if (currentTags.contains(tag)) {
-                                        currentTags.remove(tag)
-                                    } else {
-                                        currentTags.add(tag)
-                                    }
-                                    tempSelectedTags = currentTags
-                                    onTagsChange(tempSelectedTags)
-                                }
-                                .padding(vertical = 8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Checkbox(
-                                checked = tag in tempSelectedTags,
-                                onCheckedChange = { isChecked ->
-                                    val currentTags = tempSelectedTags.toMutableList()
-                                    if (isChecked) {
-                                        if (!currentTags.contains(tag)) currentTags.add(tag)
-                                    } else {
-                                        currentTags.remove(tag)
+                            filteredTags.forEach { tag ->
+                                val selected = tag in tempSelectedTags
+                                FilterChip(
+                                    selected = selected,
+                                    onClick = {
+                                        val currentTags = tempSelectedTags.toMutableList()
+                                        if (selected) {
+                                            currentTags.remove(tag)
+                                        } else {
+                                            currentTags.add(tag)
+                                        }
+                                        tempSelectedTags = currentTags
+                                        onTagsChange(tempSelectedTags)
+                                    },
+                                    label = { Text(tag) },
+                                    leadingIcon = if (selected) {
+                                        { Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.height(18.dp)) }
+                                    } else null,
+                                    trailingIcon = {
+                                         Icon(
+                                            Icons.Default.Delete, 
+                                            contentDescription = stringResource(R.string.delete_tag_desc),
+                                            modifier = Modifier.height(16.dp).clickable {
+                                                tagToDelete = tag
+                                                showDeleteTagDialog = true
+                                            }
+                                        )
                                     }
-                                    tempSelectedTags = currentTags
-                                    onTagsChange(tempSelectedTags)
-                                }
-                            )
-                            Text(
-                                text = tag,
-                                modifier = Modifier
-                                    .padding(start = 16.dp)
-                                    .weight(1f)
-                            )
-                            IconButton(onClick = {
-                                tagToDelete = tag
-                                showDeleteTagDialog = true
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = stringResource(R.string.delete_tag_desc)
                                 )
                             }
                         }
@@ -374,9 +385,9 @@ fun NoteRTE(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Botão para adicionar nova tag
+                // Add New Tag Button
                 if (valueSearchMBS.isNotBlank() && !allTags.any { it.equals(valueSearchMBS, ignoreCase = true) }) {
-                    Button(
+                    FilledTonalButton(
                         onClick = {
                             val newTag = valueSearchMBS.trim()
                             val currentTags = tempSelectedTags.toMutableList()
@@ -404,233 +415,260 @@ fun NoteRTE(
     Scaffold(
         modifier = modifier.imePadding(),
         topBar ={
-            CenterAlignedTopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                ),
-                title = {
-                    Column(
-                        verticalArrangement = Arrangement.Bottom,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = stringResource(R.string.last_edited),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                        val formattedDate = remember(lastEditDate) {
-                            dateFormatterRelative(lastEditDate.time)
-                        }
-                        Text(
-                            text = formattedDate,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelSmall,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackPress) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.localized_description)
-                        )
-                    }
-                },
-                actions = {
-                    val iconColor by animateColorAsState(
-                        targetValue = if (isPinned) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
-                        label = stringResource(R.string.pin_color_animation_label)
-                    )
-                    IconButton(onClick = onTogglePin) {
-                        Icon(
-                            imageVector = if (isPinned) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                            contentDescription = stringResource(R.string.pin_note_desc),
-                            tint = iconColor
-                        )
-                    }
-                    var showDeleteDialog by remember { mutableStateOf(false) }
-                    if (showDeleteDialog == true) {
-                        AlertDialog(
-                            title = { Text(stringResource(R.string.delete_note_title)) },
-                            text = { Text(stringResource(R.string.delete_note_confirmation)) },
-                            icon = {
-                                Icon(Icons.Default.Delete, stringResource(R.string.delete_icon_desc))
-                            },
-                            onDismissRequest = { showDeleteDialog = false },
-                            confirmButton = {
-                                Button(onClick = {
-                                    onDeleteNote()
-                                }) {
-                                    Text(stringResource(R.string.delete_action))
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = {
-                                    showDeleteDialog = false
-                                }) {
-                                    Text(stringResource(R.string.cancel))
-                                }
-                            })
-                    }
-                    IconButton(onClick = {
-                        showDeleteDialog = true
-                    }) {
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = stringResource(R.string.delete_note_desc)
-                        )
-                    }
-                },
-                scrollBehavior = scrollBehavior,
-            )
-        },
-        bottomBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding(),
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.CenterVertically
+            AnimatedVisibility(
+                visible = !isImeVisible,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
-
-                //Bold Button
-                IconButton(
-                    onClick = {
-                        state.toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    }, colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = if (state.currentSpanStyle.fontWeight == FontWeight.Bold) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                        contentColor = if (state.currentSpanStyle.fontWeight == FontWeight.Bold) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                    )
-                ) {
-                    Icon(
-                        Icons.Filled.FormatBold,
-                        contentDescription = stringResource(R.string.bold_format)
-                    )
-                }
-                //Italic Button
-                IconButton(
-                    onClick = {
-                        state.toggleSpanStyle(SpanStyle(fontStyle = FontStyle.Italic))
-                    }, colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = if (state.currentSpanStyle.fontStyle == FontStyle.Italic) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                        contentColor = if (state.currentSpanStyle.fontStyle == FontStyle.Italic) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.FormatItalic,
-                        contentDescription = stringResource(R.string.italic_format)
-                    )
-                }
-                //Underline Button
-                IconButton(
-                    onClick = {
-                        state.toggleSpanStyle(SpanStyle(textDecoration = TextDecoration.Underline))
+                CenterAlignedTopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        titleContentColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    title = {
+                        Column(
+                            verticalArrangement = Arrangement.Bottom,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = stringResource(R.string.last_edited),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                            val formattedDate = remember(lastEditDate) {
+                                dateFormatterRelative(lastEditDate.time)
+                            }
+                            Text(
+                                text = formattedDate,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     },
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = if (state.currentSpanStyle.textDecoration == TextDecoration.Underline) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                        contentColor = if (state.currentSpanStyle.textDecoration == TextDecoration.Underline) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.FormatUnderlined,
-                        contentDescription = stringResource(R.string.underline_format)
-                    )
-                }
-                //Ordererd List Button
-                IconButton(
-                    onClick = {
-                        state.toggleOrderedList()
+                    navigationIcon = {
+                        IconButton(onClick = onBackPress) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.localized_description)
+                            )
+                        }
                     },
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = if (state.isOrderedList) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                        contentColor = if (state.isOrderedList) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.FormatListNumbered,
-                        contentDescription = stringResource(R.string.format_list_numbered)
-                    )
-                }
-                //Unordererd List Button
-                IconButton(
-                    onClick = {
-                        state.toggleUnorderedList()
+                    actions = {
+                        val iconColor by animateColorAsState(
+                            targetValue = if (isPinned) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                            label = stringResource(R.string.pin_color_animation_label)
+                        )
+                        IconButton(onClick = onTogglePin) {
+                            Icon(
+                                imageVector = if (isPinned) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                contentDescription = stringResource(R.string.pin_note_desc),
+                                tint = iconColor
+                            )
+                        }
+                        var showDeleteDialog by remember { mutableStateOf(false) }
+                        if (showDeleteDialog == true) {
+                            AlertDialog(
+                                title = { Text(stringResource(R.string.delete_note_title)) },
+                                text = { Text(stringResource(R.string.delete_note_confirmation)) },
+                                icon = {
+                                    Icon(Icons.Default.Delete, stringResource(R.string.delete_icon_desc))
+                                },
+                                onDismissRequest = { showDeleteDialog = false },
+                                confirmButton = {
+                                    Button(onClick = {
+                                        onDeleteNote()
+                                    }) {
+                                        Text(stringResource(R.string.delete_action))
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = {
+                                        showDeleteDialog = false
+                                    }) {
+                                        Text(stringResource(R.string.cancel))
+                                    }
+                                })
+                        }
+                        IconButton(onClick = {
+                            showDeleteDialog = true
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.delete_note_desc)
+                            )
+                        }
                     },
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = if (state.isUnorderedList) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                        contentColor = if (state.isUnorderedList) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
-                        contentDescription = stringResource(R.string.format_list_numbered)
-                    )
-                }
-                //Link Button
-                IconButton(
-                    onClick = {
-                        showLinkDialog = true
-                    },
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = if (state.isLink) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                        contentColor = if (state.isLink) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Link,
-                        contentDescription = stringResource(R.string.format_list_numbered)
-                    )
-                }
+                    scrollBehavior = scrollBehavior,
+                )
             }
-            
+        },
+        floatingActionButtonPosition = FabPosition.Center,
+        floatingActionButton = {
+            HorizontalFloatingToolbar(
+                expanded = true,
+                modifier = Modifier
+                    .padding(bottom = 8.dp)
+                    .imePadding()
+                    .navigationBarsPadding(),
+                content = {
+                    //Bold Button
+                    FilledTonalIconToggleButton(
+                        checked = state.currentSpanStyle.fontWeight == FontWeight.Bold,
+                        onCheckedChange = {
+                            state.toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                        }
+                    ) {
+                        Icon(
+                            Icons.Filled.FormatBold,
+                            contentDescription = stringResource(R.string.bold_format)
+                        )
+                    }
+                    //Italic Button
+                    FilledTonalIconToggleButton(
+                        checked = state.currentSpanStyle.fontStyle == FontStyle.Italic,
+                        onCheckedChange = {
+                            state.toggleSpanStyle(SpanStyle(fontStyle = FontStyle.Italic))
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.FormatItalic,
+                            contentDescription = stringResource(R.string.italic_format)
+                        )
+                    }
+                    //Underline Button
+                    FilledTonalIconToggleButton(
+                        checked = state.currentSpanStyle.textDecoration == TextDecoration.Underline,
+                        onCheckedChange = {
+                            state.toggleSpanStyle(SpanStyle(textDecoration = TextDecoration.Underline))
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.FormatUnderlined,
+                            contentDescription = stringResource(R.string.underline_format)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    //Ordererd List Button
+                    FilledTonalIconToggleButton(
+                        checked = state.isOrderedList,
+                        onCheckedChange = {
+                            state.toggleOrderedList()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.FormatListNumbered,
+                            contentDescription = stringResource(R.string.format_list_numbered)
+                        )
+                    }
+                    //Unordererd List Button
+                    FilledTonalIconToggleButton(
+                        checked = state.isUnorderedList,
+                        onCheckedChange = {
+                            state.toggleUnorderedList()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
+                            contentDescription = stringResource(R.string.format_list_numbered)
+                        )
+                    }
+                    //Link Button
+                    FilledTonalIconToggleButton(
+                        checked = state.isLink,
+                        onCheckedChange = {
+                            showLinkDialog = true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Link,
+                            contentDescription = stringResource(R.string.format_list_numbered)
+                        )
+                    }
+                }
+            )
         }) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            AnimatedVisibility(
+                visible = !isImeVisible,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
-                item {
-                    IconButton(onClick = { showBottomSheet = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = stringResource(R.string.add_tag_desc)
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        InputChip(
+                            selected = false,
+                            onClick = { showBottomSheet = true },
+                            label = { Text(stringResource(R.string.add_tag_desc)) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.height(18.dp)
+                                )
+                            }
                         )
                     }
-                }
-                items(items = tags) { tag ->
-                    if (tag != "") {
-                        TagItem(modifier = Modifier, tag = tag)
+                    items(items = tags) { tag ->
+                        if (tag.isNotEmpty()) {
+                            InputChip(
+                                selected = false,
+                                onClick = { /* No action on click for now, maybe open edit? */ },
+                                label = { Text(tag) },
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = stringResource(R.string.delete_tag_desc),
+                                        modifier = Modifier.height(18.dp).clickable {
+                                            tagToDelete = tag
+                                            showDeleteTagDialog = true
+                                        }
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
-
-
             }
             TextField(
                 value = title,
-                placeholder = { Text(stringResource(R.string.title_placeholder)) },
+                placeholder = { 
+                    Text(
+                        stringResource(R.string.title_placeholder),
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    ) 
+                },
                 onValueChange = onTitleChange,
-                label = { Text(text = stringResource(R.string.title_label)) },
-                textStyle = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = FontWeight(500)
+                textStyle = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold
                 ),
-                maxLines = 1,
-                modifier = Modifier.fillMaxWidth(),
+                maxLines = 2,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp), // Reduce padding slightly as Text component has internal padding
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.background,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.background,
-                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                    unfocusedIndicatorColor = MaterialTheme.colorScheme.secondary,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.secondary,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    cursorColor = MaterialTheme.colorScheme.primary,
                 )
             )
             RichTextEditor(
                 modifier = Modifier
-                    .fillMaxSize(), state = state,
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp), state = state,
                 placeholder = { Text(stringResource(R.string.content_placeholder)) },
                 colors = RichTextEditorDefaults.richTextEditorColors(
                     containerColor = MaterialTheme.colorScheme.background

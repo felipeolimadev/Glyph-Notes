@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,6 +26,7 @@ fun SearchBarField(
     modifier: Modifier = Modifier,
     query: String,
     onQueryChange: (String) -> Unit,
+    onFilterClick: () -> Unit,
 ) {
     Column {
         SearchBar(
@@ -51,6 +53,9 @@ fun SearchBarField(
                             IconButton(onClick = { onQueryChange("") }) {
                                 Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_search_desc))
                             }
+                        }
+                        IconButton(onClick = onFilterClick) {
+                            Icon(Icons.Default.Settings, contentDescription = "Filter")
                         }
                     }
                 )

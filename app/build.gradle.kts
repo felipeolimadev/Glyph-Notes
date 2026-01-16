@@ -66,7 +66,7 @@ dependencies {
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("androidx.glance:glance-material3:1.1.1")
     implementation("androidx.datastore:datastore-preferences:1.2.0")
-    implementation ("com.github.SimformSolutionsPvtLtd:SSJetpackComposeSwipeableView:1.0.1")
+
     implementation("com.mohamedrejeb.richeditor:richeditor-compose:1.0.0-rc13")
 
 
