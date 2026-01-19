@@ -85,12 +85,12 @@ fun NoteItem(
                     )
                     Spacer(modifier = Modifier.padding(MaterialTheme.dimens.paddingSmall))
 
-                    Text(
-                        text = category,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold
-                    )
+//                    Text(
+//                        text = category,
+//                        style = MaterialTheme.typography.titleSmall,
+//                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+//                        fontWeight = FontWeight.Bold
+//                    )
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 Row(

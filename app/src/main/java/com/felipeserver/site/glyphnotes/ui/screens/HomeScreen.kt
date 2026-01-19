@@ -17,10 +17,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material3.BottomAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -48,6 +61,7 @@ import com.felipeserver.site.glyphnotes.ui.components.SearchBarField
 import com.felipeserver.site.glyphnotes.ui.components.SwipeToRevealItem
 import com.felipeserver.site.glyphnotes.ui.theme.GlyphNotesTheme
 import com.felipeserver.site.glyphnotes.ui.theme.dimens
+import com.felipeserver.site.glyphnotes.ui.viewmodel.navigation.Screen
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteDetailEvent
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModel
 import com.felipeserver.site.glyphnotes.ui.viewmodel.ui.NoteViewModelFactory
@@ -177,7 +191,7 @@ fun HomeContent(
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 state = listStateNotes,
-                horizontalAlignment = Alignment.CenterHorizontally,
+                horizontalAlignment = Alignment.End,
                 contentPadding = PaddingValues(
                     top = MaterialTheme.dimens.paddingLarge,
                     bottom = MaterialTheme.dimens.paddingLarge + contentPadding.calculateBottomPadding()
@@ -313,6 +327,7 @@ private fun getNoteGroup(date: Date, todayString: String, yesterdayString: Strin
 }
 
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun HomeScreenPreview() {
@@ -366,18 +381,64 @@ fun HomeScreenPreview() {
                 lastEditDate = lastMonth
             )
         )
-        HomeContent(
-            modifier = Modifier,
-            contentPadding = PaddingValues(top = 32.dp, bottom = 32.dp),
-            notes = mockNotes,
-            onNoteClick = {},
-            onNoteDelete = {},
-            searchQuery = "",
-            onQueryChange = {},
-            selectedTags = emptySet(),
-            onTagsChanged = {},
-            showFilterSheet = false,
-            onFilterSheetChange = {}
-        )
+        
+        Scaffold(
+            floatingActionButton = {
+                HorizontalFloatingToolbar(
+                    expanded = true,
+                    floatingActionButton = {
+                        FloatingActionButton(
+                            onClick = { },
+                            containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
+                            elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
+                        ) {
+                            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_note))
+                        }
+                    },
+                    content = {
+                        val items = listOf(
+                            Screen.Home to Icons.Default.Home,
+                            Screen.Favorites to Icons.Default.Favorite
+                        )
+                        items.forEach { (screen, icon) ->
+                            val isSelected = screen == Screen.Home
+                            IconButton(
+                                onClick = { },
+                                colors = if (isSelected) {
+                                    androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                } else {
+                                    androidx.compose.material3.IconButtonDefaults.iconButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null
+                                )
+                            }
+                        }
+                    }
+                )
+            },
+            floatingActionButtonPosition = FabPosition.Center
+        ) { innerPadding ->
+            HomeContent(
+                modifier = Modifier,
+                contentPadding = innerPadding,
+                notes = mockNotes,
+                onNoteClick = {},
+                onNoteDelete = {},
+                searchQuery = "",
+                onQueryChange = {},
+                selectedTags = emptySet(),
+                onTagsChanged = {},
+                showFilterSheet = false,
+                onFilterSheetChange = {}
+            )
+        }
     }
 }

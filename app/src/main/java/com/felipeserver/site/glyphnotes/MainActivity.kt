@@ -32,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -96,7 +95,6 @@ class MainActivity : ComponentActivity() {
                             if (showBottomBar) {
                                 HorizontalFloatingToolbar(
                                     expanded = true,
-                                    modifier = Modifier.padding(bottom = 20.dp),
                                     floatingActionButton = {
                                         FloatingActionButton(
                                             onClick = { navController.navigate("note_rich_text_editor_screen/-1") },
@@ -226,95 +224,119 @@ fun DefaultPreview() {
             color = MaterialTheme.colorScheme.background
         ) {
             val navController = rememberNavController()
-            val userNameState = "Usuário"
             val startDestination = Screen.Home.rout
 
+            // Simulation of back stack for preview
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentDestination = navBackStackEntry?.destination
+            // Force showBottomBar to true for preview or check if current destination is null (initial state)
             val showBottomBar = currentDestination?.route in listOf(
                 Screen.Home.rout,
                 Screen.Favorites.rout
-            )
+            ) || currentDestination == null
 
             Scaffold(
-                        floatingActionButton = {
-                            if (showBottomBar) {
-                                HorizontalFloatingToolbar(
-                                    expanded = true,
-                                    modifier = Modifier.padding(bottom = 20.dp),
-                                    floatingActionButton = {
-                                        FloatingActionButton(
-                                            onClick = { navController.navigate("note_rich_text_editor_screen/-1") },
-                                            containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
-                                            elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
-                                        ) {
-                                            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_note))
-                                        }
-                                    },
-                                    content = {
-                                        val items = listOf(
-                                            Screen.Home to Icons.Default.Home,
-                                            Screen.Favorites to Icons.Default.Favorite
-                                        )
-                                        items.forEach { (screen, icon) ->
-                                            val isSelected = currentDestination?.hierarchy?.any { it.route == screen.rout } == true
-                                            IconButton(
-                                                onClick = {
-                                                    val route = screen.rout.replace("{noteId}", "-1")
-                                                    navController.navigate(route) {
-                                                        popUpTo(navController.graph.findStartDestination().id) {
-                                                            saveState = true
-                                                        }
-                                                        launchSingleTop = true
-                                                        restoreState = true
-                                                    }
-                                                },
-                                                colors = if (isSelected) {
-                                                    androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
-                                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                                    )
-                                                } else {
-                                                    androidx.compose.material3.IconButtonDefaults.iconButtonColors(
-                                                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
-                                            ) {
-                                                Icon(
-                                                    imageVector = icon,
-                                                    contentDescription = null
-                                                )
-                                            }
-                                        }
-                                    }
+                floatingActionButton = {
+                    if (showBottomBar) {
+                        HorizontalFloatingToolbar(
+                            expanded = true,
+                            floatingActionButton = {
+                                FloatingActionButton(
+                                    onClick = { },
+                                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
+                                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_note))
+                                }
+                            },
+                            content = {
+                                val items = listOf(
+                                    Screen.Home to Icons.Default.Home,
+                                    Screen.Favorites to Icons.Default.Favorite
                                 )
+                                items.forEach { (screen, icon) ->
+                                    val isSelected = screen == Screen.Home // Force Home selected for preview
+                                    IconButton(
+                                        onClick = { },
+                                        colors = if (isSelected) {
+                                            androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                        } else {
+                                            androidx.compose.material3.IconButtonDefaults.iconButtonColors(
+                                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = null
+                                        )
+                                    }
+                                }
                             }
-                        },
-                        floatingActionButtonPosition = FabPosition.Center
+                        )
+                    }
+                },
+                floatingActionButtonPosition = FabPosition.Center
             ) { innerPadding ->
                 NavHost(
                     navController = navController,
                     startDestination = startDestination,
                 ) {
                     composable(Screen.Home.rout) {
-                        HomeScreen(
+                        val calendar = java.util.Calendar.getInstance()
+                        val today = calendar.time
+                        calendar.add(java.util.Calendar.DAY_OF_YEAR, -1)
+                        val yesterday = calendar.time
+                        
+                        val mockNotes = listOf(
+                            com.felipeserver.site.glyphnotes.data.db.Note(
+                                id = 1,
+                                title = "Ideias para o App",
+                                content = "Explorar novas features de IA para o editor de notas.",
+                                tags = listOf("IA", "Dev", "Mobile"),
+                                category = "Trabalho",
+                                isPinned = true,
+                                creationDate = today,
+                                lastEditDate = today
+                            ),
+                            com.felipeserver.site.glyphnotes.data.db.Note(
+                                id = 2,
+                                title = "Lista de Compras",
+                                content = "Leite, pão, ovos e café.",
+                                tags = listOf("Casa", "Mercado"),
+                                category = "Pessoal",
+                                isPinned = false,
+                                creationDate = today,
+                                lastEditDate = today
+                            ),
+                            com.felipeserver.site.glyphnotes.data.db.Note(
+                                id = 3,
+                                title = "Resumo da Reunião",
+                                content = "Enviar o resumo sobre o alinhamento do projeto.",
+                                tags = emptyList(),
+                                category = "Trabalho",
+                                isPinned = false,
+                                creationDate = yesterday,
+                                lastEditDate = yesterday
+                            )
+                        )
+                        
+                        com.felipeserver.site.glyphnotes.ui.screens.HomeContent(
                             modifier = Modifier,
                             contentPadding = innerPadding,
-                            onNoteClick = { noteId ->
-                                navController.navigate("note_rich_text_editor_screen/$noteId")
-                            }
+                            notes = mockNotes,
+                            onNoteClick = { },
+                            onNoteDelete = { },
+                            searchQuery = "",
+                            onQueryChange = { },
+                            selectedTags = emptySet(),
+                            onTagsChanged = { },
+                            showFilterSheet = false,
+                            onFilterSheetChange = { }
                         )
-                    }
-                    composable(Screen.Favorites.rout) {
-                        FavoritesScreen(
-                            modifier = Modifier.padding(innerPadding),
-                            onNoteClick = { noteId ->
-                                navController.navigate("note_rich_text_editor_screen/$noteId")
-                            }
-                        )
-                    }
-                    composable(Screen.Calendar.rout) {
-                        CalendarScreen(modifier = Modifier.padding(innerPadding))
                     }
                 }
             }
